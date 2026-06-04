@@ -1,0 +1,18 @@
+# Rust build output
+/target
+
+# Debug symbols
+*.pdb
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Cargo.lock is intentionally committed: this workspace ships a binary.

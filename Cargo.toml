@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = ["spdr", "spdr-cli"]
+
+# Shared fields both crates inherit via `*.workspace = true`.
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/The-Open-Memory-Initiative-OMI/spdr"
+authors = ["MERT EFE ŞENSOY <sensoymertefe@gmail.com>"]
+
+# Lints inherited by every member via `[lints] workspace = true`.
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "deny"
