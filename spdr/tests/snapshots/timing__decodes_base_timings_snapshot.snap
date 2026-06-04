@@ -1,0 +1,115 @@
+---
+source: spdr/tests/timing.rs
+expression: timings
+---
+Timings {
+    tckavg_min: Picoseconds(
+        416,
+    ),
+    tckavg_max: Picoseconds(
+        1000,
+    ),
+    supported_cas_latencies: [
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+    ],
+    taa: Picoseconds(
+        16640,
+    ),
+    trcd: Picoseconds(
+        16640,
+    ),
+    trp: Picoseconds(
+        16640,
+    ),
+    tras: Picoseconds(
+        32000,
+    ),
+    trc: Picoseconds(
+        48640,
+    ),
+    twr: Picoseconds(
+        30000,
+    ),
+    trfc1: Picoseconds(
+        295000,
+    ),
+    trfc2: Picoseconds(
+        160000,
+    ),
+    trfcsb: Picoseconds(
+        130000,
+    ),
+    trrd_l: TimingPair {
+        time: Picoseconds(
+            5000,
+        ),
+        clocks: ClockCycles(
+            8,
+        ),
+    },
+    tccd_l: TimingPair {
+        time: Picoseconds(
+            5000,
+        ),
+        clocks: ClockCycles(
+            8,
+        ),
+    },
+    tccd_l_wr: TimingPair {
+        time: Picoseconds(
+            20000,
+        ),
+        clocks: ClockCycles(
+            32,
+        ),
+    },
+    tccd_l_wr2: TimingPair {
+        time: Picoseconds(
+            10000,
+        ),
+        clocks: ClockCycles(
+            16,
+        ),
+    },
+    tfaw: TimingPair {
+        time: Picoseconds(
+            13333,
+        ),
+        clocks: ClockCycles(
+            32,
+        ),
+    },
+    twtr_l: TimingPair {
+        time: Picoseconds(
+            10000,
+        ),
+        clocks: ClockCycles(
+            16,
+        ),
+    },
+    twtr_s: TimingPair {
+        time: Picoseconds(
+            2500,
+        ),
+        clocks: ClockCycles(
+            4,
+        ),
+    },
+    trtp: TimingPair {
+        time: Picoseconds(
+            7500,
+        ),
+        clocks: ClockCycles(
+            12,
+        ),
+    },
+}

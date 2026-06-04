@@ -10,12 +10,14 @@
 //! Phase 1 covers the decode foundation ([`SpdImage`], [`DecodeError`]) and the
 //! identity-and-base configuration block ([`IdentityAndBase`]). Phase 2 adds the
 //! CRC-16 primitive ([`crc16`]) and the base configuration CRC check
-//! ([`verify_base_crc`]), a queryable check that never blocks decoding.
+//! ([`verify_base_crc`]), a queryable check that never blocks decoding. Phase 3
+//! adds the base JEDEC timing block ([`Timings`], [`decode_timings`]).
 
 mod crc;
 mod error;
 mod identity;
 mod reader;
+mod timing;
 
 pub use crc::{CrcStatus, crc16, verify_base_crc};
 pub use error::DecodeError;
@@ -24,3 +26,4 @@ pub use identity::{
     PackageType, SpdRevision, decode_identity_and_base,
 };
 pub use reader::SpdImage;
+pub use timing::{CasLatencies, ClockCycles, Picoseconds, TimingPair, Timings, decode_timings};
