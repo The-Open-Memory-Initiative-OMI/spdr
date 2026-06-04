@@ -8,12 +8,16 @@
 //! in firmware and UEFI contexts.
 //!
 //! Phase 1 covers the decode foundation ([`SpdImage`], [`DecodeError`]) and the
-//! identity-and-base configuration block ([`IdentityAndBase`]).
+//! identity-and-base configuration block ([`IdentityAndBase`]). Phase 2 adds the
+//! CRC-16 primitive ([`crc16`]) and the base configuration CRC check
+//! ([`verify_base_crc`]), a queryable check that never blocks decoding.
 
+mod crc;
 mod error;
 mod identity;
 mod reader;
 
+pub use crc::{CrcStatus, crc16, verify_base_crc};
 pub use error::DecodeError;
 pub use identity::{
     BankGroups, BanksPerBankGroup, DensityPerDie, DeviceType, IdentityAndBase, IoWidth, ModuleType,

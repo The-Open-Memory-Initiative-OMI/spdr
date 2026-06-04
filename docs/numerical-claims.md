@@ -19,7 +19,16 @@ Every number that appears in the docs, the README, or a commit message, paired w
 | Primary bus width per channel | 32 bits | Decoded from byte 235 bits [2:0]. |
 | Module width / ECC | 64-bit, non-ECC | Derived: 2 channels x 32-bit; ECC extension bits [4:3] = 0. |
 | Module capacity | 16 GB | Derived from the decoded geometry (8 x8 devices x 16 Gb x 1 rank); matches the part rating. |
-| Rated speed / timings / voltage | DDR5-6000, 38-38-38-78, 1.25 V | Part rating (TEAMGROUP T-Create Expert 6000, part code CTCED532G6000HC38ADC01); to be confirmed against the SPD timing bytes in phase 2. |
-| Reference markers (not yet decoded) | mfr `0x04ef`, week 37 / 2023, main CRC `0x8021` | Provenance note from the dump source; to be confirmed in phases 2 and 5. |
+| Rated speed / timings / voltage | DDR5-6000, 38-38-38-78, 1.25 V | Part rating (TEAMGROUP T-Create Expert 6000, part code CTCED532G6000HC38ADC01); to be confirmed against the SPD timing bytes in a later phase. |
+| Reference markers (not yet decoded) | mfr `0x04ef`, week 37 / 2023 | Provenance note from the dump source; to be confirmed in a later phase. |
+
+## Main configuration CRC (Phase 2)
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Main CRC, computed | `0x8021` | Computed by `crc16` (CRC-16/XMODEM) over fixture bytes 0-509; asserted by `fixture_main_crc_is_0x8021_and_matches`. |
+| Main CRC, stored | `0x8021` | Fixture bytes 510-511 (`0x21 0x80`, little-endian); equals the computed value. |
+| Published reference | `0x8021` | The published main CRC for serial 0104eef6; computed equals stored equals this value. |
+| CRC-16/XMODEM check vector | `0x31C3` | Standard catalogue check value for input `123456789`; asserted by `crc16_xmodem_check_vector`. |
 
 The unit-test suite count (16 tests) and the toolchain version (Rust 1.96.0 stable) are operational facts recorded in `docs/implementations/2026-06-04-phase-1-foundation.md`, not public correctness claims.

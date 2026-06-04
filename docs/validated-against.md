@@ -14,6 +14,10 @@ The enumerable set of real DDR5 modules this decoder is confirmed correct on; ev
 
 DDR5 SDRAM, UDIMM (non-hybrid), SPD revision 1.0, SPD device size 1024 bytes; 16 Gb density per die, monolithic (1 die), 16 row / 10 column address bits, x8 I/O width, 8 bank groups x 4 banks per group (32 banks); 1 package rank per channel (symmetric), 2 channels per DIMM, 32-bit primary bus width per channel (2 x 32 = 64-bit, non-ECC).
 
+### Confirmed by Phase 2 (base configuration CRC)
+
+Main configuration CRC `0x8021`: computed over bytes 0-509 with CRC-16/XMODEM and read from the stored bytes 510-511 (little-endian), computed equals stored equals `0x8021`, matching the published reference for serial 0104eef6.
+
 ### Reference markers to confirm in later phases (not asserted now)
 
-Module manufacturer ID `0x04ef`, manufacturing date week 37 of 2023, main configuration CRC `0x8021`, plus the published XMP and EXPO section CRCs. Phase 1 decodes only the identity-and-base block; phases 2 and 5 confirm the CRCs and manufacturing fields against these markers.
+Module manufacturer ID `0x04ef`, manufacturing date week 37 of 2023, plus the published XMP and EXPO section CRCs. The manufacturing fields are confirmed in a later phase; the XMP and EXPO section CRCs are vendor extensions confirmed in Phase 9. (The main configuration CRC marker is now confirmed above.)
