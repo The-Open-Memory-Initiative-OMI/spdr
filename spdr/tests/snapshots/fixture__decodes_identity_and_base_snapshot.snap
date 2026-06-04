@@ -1,0 +1,26 @@
+---
+source: spdr/tests/fixture.rs
+expression: decoded
+---
+IdentityAndBase {
+    spd_bytes_total: 1024,
+    spd_revision: SpdRevision {
+        major: 1,
+        minor: 0,
+    },
+    device_type: Ddr5,
+    module_type: Udimm,
+    hybrid: false,
+    density_per_die: Gb16,
+    package_type: Monolithic,
+    die_count: 1,
+    row_address_bits: 16,
+    column_address_bits: 10,
+    io_width: X8,
+    bank_groups: Eight,
+    banks_per_bank_group: Four,
+    package_ranks_per_channel: 1,
+    rank_mix_asymmetric: false,
+    channels_per_dimm: 2,
+    primary_bus_width_bits: 32,
+}
