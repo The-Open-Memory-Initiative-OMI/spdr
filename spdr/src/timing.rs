@@ -275,8 +275,9 @@ fn decode_cas_latencies(spd: &SpdImage) -> Result<CasLatencies, DecodeError> {
 }
 
 /// Data rate in MT/s for a clock period, rounded to the nearest 100; 0 if the
-/// period is zero.
-fn data_rate_mt_s(tckavg_min: Picoseconds) -> u32 {
+/// period is zero. Crate-visible so the XMP/EXPO profile decode derives its
+/// rated data rate through the same rounding rather than duplicating it.
+pub(crate) fn data_rate_mt_s(tckavg_min: Picoseconds) -> u32 {
     if tckavg_min.0 == 0 {
         return 0;
     }

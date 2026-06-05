@@ -67,6 +67,25 @@ The limits of that claim, stated honestly:
 
 Under the Phase 8 rule set (the single capacity-consistency rule), the fixture produces **zero lint findings**. Its geometry is internally consistent: the primary bus width per channel (32 bits) is a positive integer multiple of the SDRAM I/O width (x8), so the per-rank device count is the whole number 4, and the capacity derives to 16 GB (matching the part rating and the Phase 1 decode). This is the clean-lint baseline the `fixture_lints_clean` test enforces permanently: as rules are added in later phases, a rule that flags this valid module is a bug in the rule, and that test catches it. The capacity formula and its pinned source are recorded in `docs/numerical-claims.md`.
 
-### Reference markers to confirm in later phases (not asserted now)
+### Confirmed by Phase 9a (XMP 3.0 and EXPO vendor profiles)
 
-The published XMP and EXPO section CRCs only. These are vendor extensions confirmed in Phase 9. (The main configuration CRC marker is confirmed in Phase 2 above; the module manufacturer ID and manufacturing date markers are confirmed in Phase 5 above.)
+The advertised DDR5-6000 profiles live in the end-user-programmable region above the JEDEC base, as Intel XMP 3.0 (magic `0x0C 0x4A` at byte 640) and AMD EXPO (magic `"EXPO"` at byte 832). Both are present and both decode. Because this is the thinnest-referenced region in the project, the decode is anchored by two independent oracles, not trusted on its own.
+
+**Section CRCs (the region anchor).** Each profile section stores a CRC-16/XMODEM, computed here with the same `crc16` primitive verified in Phase 2 and compared to the stored bytes. Computed equals stored for every section:
+
+- XMP 3.0 header: `0x252C`, over bytes 640-701, stored at 702-703.
+- XMP 3.0 profile 1: `0x0A5F`, over bytes 704-765, stored at 766-767.
+- XMP 3.0 profile 2: `0x0AC4`, over bytes 768-829, stored at 830-831.
+- AMD EXPO block: `0x9FE2`, over bytes 832-957 (one CRC for the whole block), stored at 958-959.
+
+The match over each pinned range confirms the region, the range, and that the algorithm is the same CRC-16/XMODEM as the base block. The dump source published the presence of these sections, not the specific hex values, so the computed-equals-stored match plus the rated-timing oracle is the confirmation.
+
+**Rated timings (the value oracle).** The decoded XMP profile 1 and the decoded EXPO profile 1 each reproduce the part's box rating, cross-checking the same numbers two independent ways: DDR5-6000 (tCK 333 ps), CL38 (tAA 12654 ps / tCK = 38), tRCD / tRP 12654 ps each (38 clocks), tRAS 25974 ps (78 clocks), and VDD / VDDQ 1.250 V with VPP 1.800 V (voltage byte `0x25` / `0x30` under `(byte>>5)*1000 + (byte&0x1f)*50` mV). The two formats decode to identical rated values. The named profiles are "TG-6000-38-38-78" (profile 1) and "TG-5600-40-40-84" (profile 2, DDR5-5600 40-40-84 at 1.20 V), both decoded.
+
+Offsets are pinned against memtest86plus `system/spd.c` (the XMP magic and per-profile timing offsets) and edlf `DDR5SPDEditor` (`ddr5spd_structs.h` for the header / profile / EXPO field order; `utilities.cpp` for the voltage encoding and the CRC-16 parameters), with each CRC range confirmed by computed equals stored. The decoded-versus-preserved-raw-versus-deferred boundary is recorded in `docs/numerical-claims.md`: decoded are the four CRCs, the cycle time / data rate, CAS, tRCD, tRP, tRAS, the voltages, and the XMP names; deferred (inside the CRC-confirmed region but not surfaced) are the remaining profile timings, the XMP `vMemCtrl` and metadata, and the EXPO per-profile enable-bit semantics.
+
+This **closes the last reference markers carried for the fixture**: the Phase 1 rated-speed marker (DDR5-6000 38-38-38-78 at 1.25 V, now decoded and verified, not just the part rating) and the Phase 2 XMP and EXPO section-CRC markers (now computed-equals-stored for all four sections).
+
+### Reference markers
+
+All carried markers are now closed: the main configuration CRC in Phase 2, the module manufacturer ID and manufacturing date in Phase 5, and the rated speed and the XMP / EXPO section CRCs in Phase 9a above. The remaining unimplemented surface is not a reference marker but deferred decode work, gated on real fixtures: the SODIMM / RDIMM / LRDIMM module-specific blocks, and a semantic-linter pass over the now-decoded XMP/EXPO profiles (Phase 9b).

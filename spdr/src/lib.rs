@@ -20,7 +20,11 @@
 //! including JEP-106 manufacturer resolution. Phase 8 opens the linter, the
 //! validation-beyond-CRC pillar ([`Finding`], [`Severity`], [`lint`]): it reports
 //! structured findings for values that are internally inconsistent even in a
-//! CRC-valid SPD, starting with the capacity-consistency rule.
+//! CRC-valid SPD, starting with the capacity-consistency rule. Phase 9a decodes
+//! the vendor overclocking profiles ([`Xmp`], [`Expo`], [`decode_xmp`],
+//! [`decode_expo`]): the rated DDR5 speed lives here, not in the JEDEC base
+//! block, and each section is anchored by its own CRC ([`CrcStatus`]) so an
+//! unconfirmed region is never presented as authoritative.
 
 mod crc;
 mod error;
@@ -30,6 +34,7 @@ mod manufacturing;
 mod module;
 mod reader;
 mod timing;
+mod vendor;
 
 pub use crc::{CrcStatus, crc16, verify_base_crc};
 pub use error::DecodeError;
@@ -46,3 +51,7 @@ pub use module::{
 };
 pub use reader::SpdImage;
 pub use timing::{CasLatencies, ClockCycles, Picoseconds, TimingPair, Timings, decode_timings};
+pub use vendor::{
+    Expo, ExpoProfile, Millivolts, RatedTimings, VendorProfiles, Xmp, XmpProfile, decode_expo,
+    decode_vendor_profiles, decode_xmp,
+};

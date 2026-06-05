@@ -28,7 +28,7 @@ expression: "spdr_cli::render_human(&results)"
   Match:                         yes
 
 [JEDEC base timings]
-  SPD JEDEC base timings. The rated DDR5 profile lives in XMP/EXPO and is decoded in a later version.
+  SPD JEDEC base timings (the guaranteed fallback). The rated DDR5 speed is shown below in the vendor-profiles section.
   Base data rate:                DDR5-4800 (4800 MT/s, JEDEC base)
   tCKAVGmin:                     416 ps
   tCKAVGmax:                     1000 ps
@@ -69,3 +69,44 @@ expression: "spdr_cli::render_human(&results)"
   Revision code:                 0
   DRAM manufacturer:             SK Hynix
   DRAM stepping:                 255 (not specified)
+
+[Vendor profiles (XMP 3.0 / EXPO)]
+  Rated overclock profiles. Each section is CRC-checked; the match is the region anchor.
+  Intel XMP 3.0:                 present
+    Header section CRC:          computed 0x252C, stored 0x252C (match)
+    Profile 1: TG-6000-38-38-78
+      Data rate:                 DDR5-6000 (6000 MT/s)
+      CAS latency:               CL38
+      tCKAVGmin:                 333 ps
+      tRCD:                      12654 ps (38 clocks)
+      tRP:                       12654 ps (38 clocks)
+      tRAS:                      25974 ps (78 clocks)
+      VDD / VDDQ / VPP:          1.250 V / 1.250 V / 1.800 V
+      Section CRC:               computed 0x0A5F, stored 0x0A5F (match)
+    Profile 2: TG-5600-40-40-84
+      Data rate:                 DDR5-5600 (5600 MT/s)
+      CAS latency:               CL40
+      tCKAVGmin:                 357 ps
+      tRCD:                      14280 ps (40 clocks)
+      tRP:                       14280 ps (40 clocks)
+      tRAS:                      29988 ps (84 clocks)
+      VDD / VDDQ / VPP:          1.200 V / 1.200 V / 1.800 V
+      Section CRC:               computed 0x0AC4, stored 0x0AC4 (match)
+  AMD EXPO:                      present
+    Block section CRC:           computed 0x9FE2, stored 0x9FE2 (match)
+    Profile 1:
+      Data rate:                 DDR5-6000 (6000 MT/s)
+      CAS latency:               CL38
+      tCKAVGmin:                 333 ps
+      tRCD:                      12654 ps (38 clocks)
+      tRP:                       12654 ps (38 clocks)
+      tRAS:                      25974 ps (78 clocks)
+      VDD / VDDQ / VPP:          1.250 V / 1.250 V / 1.800 V
+    Profile 2:
+      Data rate:                 DDR5-5600 (5600 MT/s)
+      CAS latency:               CL40
+      tCKAVGmin:                 357 ps
+      tRCD:                      14280 ps (40 clocks)
+      tRP:                       14280 ps (40 clocks)
+      tRAS:                      29988 ps (84 clocks)
+      VDD / VDDQ / VPP:          1.200 V / 1.200 V / 1.800 V

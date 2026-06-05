@@ -5,8 +5,9 @@
 //! without spawning a subprocess. The binary is a thin wrapper over [`run`].
 //!
 //! The CLI presents exactly what the library decodes, with no inflated labels:
-//! the timings are the SPD JEDEC base, not the rated DDR5 profile (XMP/EXPO,
-//! decoded in a later version), and the CRC is presented as a reported status,
+//! the JEDEC base timings are the guaranteed fallback, and the rated DDR5 speed
+//! is shown separately in the vendor-profiles section (XMP 3.0 / EXPO), each
+//! anchored by its section CRC. The base CRC is presented as a reported status,
 //! not a verdict. A section that fails to decode is shown with its error rather
 //! than fabricated output.
 
@@ -16,9 +17,10 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use serde_json::Value;
 use spdr::{
-    CasLatencies, CrcStatus, DecodeError, IdentityAndBase, Manufacturing, ModuleSpecific, Timings,
+    CasLatencies, CrcStatus, DecodeError, Expo, ExpoProfile, IdentityAndBase, Manufacturing,
+    ModuleSpecific, Picoseconds, RatedTimings, Timings, VendorProfiles, Xmp, XmpProfile,
     decode_identity_and_base, decode_manufacturing, decode_module_specific, decode_timings,
-    verify_base_crc,
+    decode_vendor_profiles, verify_base_crc,
 };
 
 /// The `spdr` command-line interface.
@@ -64,6 +66,9 @@ pub struct DecodeResults<'a> {
     pub module: Result<ModuleSpecific, DecodeError>,
     /// Manufacturing information block.
     pub manufacturing: Result<Manufacturing<'a>, DecodeError>,
+    /// Vendor overclocking profiles (XMP 3.0 and EXPO). An absent region is a
+    /// successful decode, not an error.
+    pub vendor: Result<VendorProfiles<'a>, DecodeError>,
 }
 
 impl DecodeResults<'_> {
@@ -77,6 +82,7 @@ impl DecodeResults<'_> {
             && self.timings.is_ok()
             && self.module.is_ok()
             && self.manufacturing.is_ok()
+            && self.vendor.is_ok()
     }
 }
 
@@ -90,6 +96,7 @@ pub fn decode(bytes: &[u8]) -> DecodeResults<'_> {
         timings: decode_timings(bytes),
         module: decode_module_specific(bytes),
         manufacturing: decode_manufacturing(bytes),
+        vendor: decode_vendor_profiles(bytes),
     }
 }
 
@@ -158,6 +165,8 @@ pub fn render_human(results: &DecodeResults) -> String {
     render_module(&mut out, &results.module);
     out.push('\n');
     render_manufacturing(&mut out, &results.manufacturing);
+    out.push('\n');
+    render_vendor(&mut out, &results.vendor);
 
     out
 }
@@ -243,7 +252,7 @@ fn render_crc(out: &mut String, result: &Result<CrcStatus, DecodeError>) {
 fn render_timings(out: &mut String, result: &Result<Timings, DecodeError>) {
     out.push_str("[JEDEC base timings]\n");
     out.push_str(
-        "  SPD JEDEC base timings. The rated DDR5 profile lives in XMP/EXPO and is decoded in a later version.\n",
+        "  SPD JEDEC base timings (the guaranteed fallback). The rated DDR5 speed is shown below in the vendor-profiles section.\n",
     );
     match result {
         Ok(t) => {
@@ -346,6 +355,139 @@ fn render_manufacturing(out: &mut String, result: &Result<Manufacturing, DecodeE
     }
 }
 
+// --- Vendor-profile rendering ----------------------------------------------
+
+/// Label column width for the indented vendor-profile lines. Chosen so values
+/// align at the same column as the flat sections (33) regardless of nesting
+/// depth: at every indent, indent + (WIDTH - indent) + 1 is constant.
+const VENDOR_LABEL_WIDTH: usize = 32;
+
+fn render_vendor(out: &mut String, result: &Result<VendorProfiles, DecodeError>) {
+    out.push_str("[Vendor profiles (XMP 3.0 / EXPO)]\n");
+    out.push_str(
+        "  Rated overclock profiles. Each section is CRC-checked; the match is the region anchor.\n",
+    );
+    match result {
+        Ok(v) => {
+            render_xmp(out, &v.xmp);
+            render_expo(out, &v.expo);
+        }
+        Err(error) => section_error(out, error),
+    }
+}
+
+fn render_xmp(out: &mut String, xmp: &Xmp) {
+    match xmp {
+        Xmp::Absent => vline(out, 2, "Intel XMP 3.0:", "absent"),
+        Xmp::Present {
+            header_crc,
+            profile1,
+            profile2,
+        } => {
+            vline(out, 2, "Intel XMP 3.0:", "present");
+            vline(out, 4, "Header section CRC:", crc_summary(header_crc));
+            render_xmp_slot(out, 1, profile1);
+            render_xmp_slot(out, 2, profile2);
+        }
+    }
+}
+
+fn render_xmp_slot(out: &mut String, number: u8, slot: &Option<XmpProfile>) {
+    match slot {
+        Some(p) => {
+            let name = p.name.unwrap_or("(unnamed)");
+            vheading(out, 4, &format!("Profile {number}: {name}"));
+            render_rated(out, &p.rated);
+            vline(out, 6, "Section CRC:", crc_summary(&p.crc));
+        }
+        None => vheading(out, 4, &format!("Profile {number}: (not enabled)")),
+    }
+}
+
+fn render_expo(out: &mut String, expo: &Expo) {
+    match expo {
+        Expo::Absent => vline(out, 2, "AMD EXPO:", "absent"),
+        Expo::Present {
+            block_crc,
+            profile1,
+            profile2,
+        } => {
+            vline(out, 2, "AMD EXPO:", "present");
+            vline(out, 4, "Block section CRC:", crc_summary(block_crc));
+            render_expo_slot(out, 1, profile1);
+            render_expo_slot(out, 2, profile2);
+        }
+    }
+}
+
+fn render_expo_slot(out: &mut String, number: u8, slot: &Option<ExpoProfile>) {
+    match slot {
+        Some(p) => {
+            vheading(out, 4, &format!("Profile {number}:"));
+            render_rated(out, &p.rated);
+        }
+        None => vheading(out, 4, &format!("Profile {number}: (not populated)")),
+    }
+}
+
+/// Render the shared rated values at the per-profile indent (6 spaces).
+fn render_rated(out: &mut String, r: &RatedTimings) {
+    vline(
+        out,
+        6,
+        "Data rate:",
+        format_args!("DDR5-{0} ({0} MT/s)", r.data_rate_mt_s),
+    );
+    vline(out, 6, "CAS latency:", format_args!("CL{}", r.cas_latency));
+    vline(
+        out,
+        6,
+        "tCKAVGmin:",
+        format_args!("{} ps", r.cycle_time.picoseconds()),
+    );
+    vline(out, 6, "tRCD:", timing_clocks(r.trcd, r.cycle_time));
+    vline(out, 6, "tRP:", timing_clocks(r.trp, r.cycle_time));
+    vline(out, 6, "tRAS:", timing_clocks(r.tras, r.cycle_time));
+    vline(
+        out,
+        6,
+        "VDD / VDDQ / VPP:",
+        format_args!("{} / {} / {}", r.vdd, r.vddq, r.vpp),
+    );
+}
+
+/// Write one indented `label   value` line; values align at a fixed column.
+fn vline(out: &mut String, indent: usize, label: &str, value: impl std::fmt::Display) {
+    let pad = VENDOR_LABEL_WIDTH.saturating_sub(indent);
+    let _ = writeln!(out, "{:i$}{label:<pad$} {value}", "", i = indent);
+}
+
+/// Write one indented heading line (no value column).
+fn vheading(out: &mut String, indent: usize, text: &str) {
+    let _ = writeln!(out, "{:i$}{text}", "", i = indent);
+}
+
+/// Format a timing in picoseconds with its whole-cycle count, guarding a zero
+/// cycle time so a malformed-but-decoded profile cannot divide by zero.
+fn timing_clocks(t: Picoseconds, cycle_time: Picoseconds) -> String {
+    let ps = t.picoseconds();
+    let tck = cycle_time.picoseconds();
+    match (ps + tck / 2).checked_div(tck) {
+        Some(clocks) => format!("{ps} ps ({clocks} clocks)"),
+        None => format!("{ps} ps"),
+    }
+}
+
+/// One-line CRC summary: the computed and stored values and whether they match.
+fn crc_summary(crc: &CrcStatus) -> String {
+    format!(
+        "computed {:#06X}, stored {:#06X} ({})",
+        crc.computed,
+        crc.stored,
+        if crc.matches { "match" } else { "MISMATCH" }
+    )
+}
+
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
@@ -423,6 +565,10 @@ pub fn render_json(results: &DecodeResults) -> Result<String, serde_json::Error>
     object.insert(
         "manufacturing".to_string(),
         section_value!(&results.manufacturing),
+    );
+    object.insert(
+        "vendor_profiles".to_string(),
+        section_value!(&results.vendor),
     );
     serde_json::to_string_pretty(&Value::Object(object))
 }

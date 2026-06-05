@@ -16,4 +16,7 @@ fuzz_target!(|data: &[u8]| {
     let _ = spdr::decode_timings(data);
     let _ = spdr::decode_module_specific(data);
     let _ = spdr::decode_manufacturing(data);
+    let _ = spdr::decode_xmp(data);
+    let _ = spdr::decode_expo(data);
+    let _ = spdr::decode_vendor_profiles(data);
 });

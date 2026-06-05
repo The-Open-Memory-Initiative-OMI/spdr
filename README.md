@@ -2,7 +2,7 @@
 
 A read-only, complete JESD400-5 SPD content decoder plus a semantic linter that validates beyond CRC.
 
-Status: decodes the JESD400-5 base content of a DDR5 SPD · identity and base configuration, base configuration CRC, base JEDEC timings, the unbuffered (UDIMM) module-specific block, and the manufacturing block · as a library and a `spdr` CLI. The rated XMP/EXPO profiles and the semantic linter are later phases.
+Status: decodes the JESD400-5 base content of a DDR5 SPD · identity and base configuration, base configuration CRC, base JEDEC timings, the unbuffered (UDIMM) module-specific block, and the manufacturing block · plus the vendor overclocking profiles (Intel XMP 3.0 and AMD EXPO), each anchored by its own section CRC · as a library and a `spdr` CLI. The semantic linter beyond CRC is the remaining later phase.
 
 ## Usage
 
@@ -36,7 +36,7 @@ Example human output (abridged):
   Stored:                        0x8021
   Match:                         yes
 [JEDEC base timings]
-  SPD JEDEC base timings. The rated DDR5 profile lives in XMP/EXPO and is decoded in a later version.
+  SPD JEDEC base timings (the guaranteed fallback). The rated DDR5 speed is shown below in the vendor-profiles section.
   Base data rate:                DDR5-4800 (4800 MT/s, JEDEC base)
   ...
 [Manufacturing]
@@ -44,9 +44,20 @@ Example human output (abridged):
   Serial number:                 0104EEF6
   Part number:                   UD5-6000
   ...
+[Vendor profiles (XMP 3.0 / EXPO)]
+  Rated overclock profiles. Each section is CRC-checked; the match is the region anchor.
+  Intel XMP 3.0:                 present
+    Header section CRC:          computed 0x252C, stored 0x252C (match)
+    Profile 1: TG-6000-38-38-78
+      Data rate:                 DDR5-6000 (6000 MT/s)
+      CAS latency:               CL38
+      tRCD:                      12654 ps (38 clocks)
+      VDD / VDDQ / VPP:          1.250 V / 1.250 V / 1.800 V
+      Section CRC:               computed 0x0A5F, stored 0x0A5F (match)
+  ...
 ```
 
-The timings shown are the SPD JEDEC base, not the rated DDR5 profile (which lives in XMP/EXPO, decoded in a later version). The CRC line is a reported status (computed, stored, match), not a pass/fail verdict; the semantic linter is Phase 11. `--json` emits the same sections as a single JSON object, with any failed section carrying an `error` indicator so the document stays valid.
+The base timings are the SPD JEDEC fallback the module guarantees; the rated DDR5 speed (DDR5-6000 here) lives in the vendor profiles, decoded in the XMP 3.0 / EXPO section. Each profile section carries its own CRC, recomputed over a pinned range and compared to the stored value: the match is what anchors the region, so an unconfirmed region is never presented as authoritative. For this fixture both XMP and EXPO decode the same rated DDR5-6000 38-38-38-78 at 1.25 V, cross-checking it two independent ways. The base CRC line is a reported status (computed, stored, match), not a pass/fail verdict; the semantic linter beyond CRC is a later phase. `--json` emits the same sections as a single JSON object, with any failed section carrying an `error` indicator so the document stays valid.
 
 ## Robustness
 

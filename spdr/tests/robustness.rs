@@ -7,7 +7,8 @@
 //! mode, so "no panic" is the whole contract.
 //!
 //! Three checks cover the whole public decode surface (identity and base, base
-//! CRC, timings, module-specific, manufacturing). Two are proptest properties
+//! CRC, timings, module-specific, manufacturing, and the XMP/EXPO vendor
+//! profiles with their section CRCs). Two are proptest properties
 //! whose body just calls every decoder and discards the result: a panic fails the
 //! test and proptest shrinks the input to a minimal reproducer. The third is a
 //! plain exhaustive test over every truncation length, which additionally asserts
@@ -32,6 +33,11 @@ fn run_all_decoders(data: &[u8]) {
     let _ = spdr::decode_timings(data);
     let _ = spdr::decode_module_specific(data);
     let _ = spdr::decode_manufacturing(data);
+    // The vendor-profile decoders run the magic search and a CRC over a fixed
+    // range; both must stay in bounds on arbitrary bytes, never panic.
+    let _ = spdr::decode_xmp(data);
+    let _ = spdr::decode_expo(data);
+    let _ = spdr::decode_vendor_profiles(data);
 }
 
 proptest! {
@@ -92,6 +98,11 @@ fn every_truncation_returns_ok_or_truncated() {
             "module-specific",
         );
         assert_ok_or_truncated(spdr::decode_manufacturing(truncated), len, "manufacturing");
+        // The vendor regions read past the bytes the base block covers, so most
+        // prefixes are `Truncated`; a present-magic region either reads fully
+        // (`Ok`) or runs off the end (`Truncated`), never another variant.
+        assert_ok_or_truncated(spdr::decode_xmp(truncated), len, "XMP");
+        assert_ok_or_truncated(spdr::decode_expo(truncated), len, "EXPO");
     }
 }
 

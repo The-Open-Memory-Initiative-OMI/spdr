@@ -122,5 +122,97 @@ expression: "spdr_cli::render_json(&results).expect(\"the fixture renders as JSO
         }
       }
     }
+  },
+  "vendor_profiles": {
+    "expo": {
+      "Present": {
+        "block_crc": {
+          "computed": 40930,
+          "matches": true,
+          "stored": 40930
+        },
+        "profile1": {
+          "profile_number": 1,
+          "rated": {
+            "cas_latency": 38,
+            "cycle_time": 333,
+            "data_rate_mt_s": 6000,
+            "taa": 12654,
+            "tras": 25974,
+            "trcd": 12654,
+            "trp": 12654,
+            "vdd": 1250,
+            "vddq": 1250,
+            "vpp": 1800
+          }
+        },
+        "profile2": {
+          "profile_number": 2,
+          "rated": {
+            "cas_latency": 40,
+            "cycle_time": 357,
+            "data_rate_mt_s": 5600,
+            "taa": 14280,
+            "tras": 29988,
+            "trcd": 14280,
+            "trp": 14280,
+            "vdd": 1200,
+            "vddq": 1200,
+            "vpp": 1800
+          }
+        }
+      }
+    },
+    "xmp": {
+      "Present": {
+        "header_crc": {
+          "computed": 9516,
+          "matches": true,
+          "stored": 9516
+        },
+        "profile1": {
+          "crc": {
+            "computed": 2655,
+            "matches": true,
+            "stored": 2655
+          },
+          "name": "TG-6000-38-38-78",
+          "profile_number": 1,
+          "rated": {
+            "cas_latency": 38,
+            "cycle_time": 333,
+            "data_rate_mt_s": 6000,
+            "taa": 12654,
+            "tras": 25974,
+            "trcd": 12654,
+            "trp": 12654,
+            "vdd": 1250,
+            "vddq": 1250,
+            "vpp": 1800
+          }
+        },
+        "profile2": {
+          "crc": {
+            "computed": 2756,
+            "matches": true,
+            "stored": 2756
+          },
+          "name": "TG-5600-40-40-84",
+          "profile_number": 2,
+          "rated": {
+            "cas_latency": 40,
+            "cycle_time": 357,
+            "data_rate_mt_s": 5600,
+            "taa": 14280,
+            "tras": 29988,
+            "trcd": 14280,
+            "trp": 14280,
+            "vdd": 1200,
+            "vddq": 1200,
+            "vpp": 1800
+          }
+        }
+      }
+    }
   }
 }

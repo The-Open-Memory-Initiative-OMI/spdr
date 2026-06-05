@@ -19,7 +19,7 @@ Every number that appears in the docs, the README, or a commit message, paired w
 | Primary bus width per channel | 32 bits | Decoded from byte 235 bits [2:0]. |
 | Module width / ECC | 64-bit, non-ECC | Derived: 2 channels x 32-bit; ECC extension bits [4:3] = 0. |
 | Module capacity | 16 GB | Derived from the decoded geometry (8 x8 devices x 16 Gb x 1 rank); matches the part rating. |
-| Rated speed / timings / voltage | DDR5-6000, 38-38-38-78, 1.25 V | Part rating (TEAMGROUP T-Create Expert 6000, part code CTCED532G6000HC38ADC01); to be confirmed against the SPD timing bytes in a later phase. |
+| Rated speed / timings / voltage | DDR5-6000, 38-38-38-78, 1.25 V | Part rating (TEAMGROUP T-Create Expert 6000, part code CTCED532G6000HC38ADC01); **now decoded and confirmed** from the XMP and EXPO profile bytes in Phase 9a (see below), no longer just the box rating. |
 | Reference markers (now confirmed in Phase 5) | mfr `0x04ef`, week 37 / 2023 | Originally a provenance note from the dump source; decoded and confirmed against the published reference in Phase 5 (see below). |
 
 ## Main configuration CRC (Phase 2)
@@ -96,3 +96,39 @@ The linter's first rule checks the precondition of the JEDEC module-capacity for
 | Capacity precondition (the rule) | bus width must be a positive integer multiple of the I/O width | If `bus_width mod io_width != 0` (or either is zero), the device count is fractional and capacity is undefined; the reference's integer division would silently truncate. Fixture: `32 mod 8 == 0`, precondition holds, rule emits nothing. |
 
 The rule checks only the divisibility precondition (a guarded modulo, no overflow), not the full capacity product. Facts and formulas are not copyrightable; the rule was reimplemented in Rust from the pinned references, no externally licensed source copied.
+
+## Vendor overclocking profiles · XMP 3.0 and EXPO (Phase 9a)
+
+The rated DDR5 speed lives in the vendor profiles, not the JEDEC base block. Each profile section stores a CRC-16 over a fixed byte range; the computed-equals-stored match is the region anchor, and it is what pinned every offset below (the ranges are not guessed, they are the ranges whose computed CRC equals the stored CRC). Offsets are pinned against memtest86plus `system/spd.c` (XMP magic `0x0C 0x4A` at 640, and the per-profile timing offsets: tCK at profile+5, tAA at +13, tRCD at +15, tRP at +17, tRAS at +19, little-endian) and edlf `DDR5SPDEditor` (`ddr5spd_structs.h` for the header / profile / EXPO field order and the `"EXPO"` magic at 832; `utilities.cpp` for the voltage encoding and the CRC-16 parameters), then each range was confirmed by computed equals stored on the fixture.
+
+### Section CRCs (the region anchor)
+
+| Section | Range covered | Stored at | Value | Source |
+| --- | --- | --- | --- | --- |
+| XMP 3.0 header | bytes 640-701 | 702-703, LE | `0x252C` | `crc16` (CRC-16/XMODEM) over 640-701; computed equals stored; asserted by `xmp_section_crcs_match_stored`. |
+| XMP 3.0 profile 1 | bytes 704-765 | 766-767, LE | `0x0A5F` | Same primitive over 704-765; computed equals stored; same test. |
+| XMP 3.0 profile 2 | bytes 768-829 | 830-831, LE | `0x0AC4` | Same primitive over 768-829; computed equals stored; same test. |
+| AMD EXPO block | bytes 832-957 | 958-959, LE | `0x9FE2` | Same primitive over 832-957 (one CRC for the whole block); computed equals stored; asserted by `expo_block_crc_matches_stored`. |
+
+All four match using the same CRC-16/XMODEM primitive verified for the base block in Phase 2, confirming the algorithm is reused unchanged. The dump source published the presence of the XMP and EXPO sections, not these specific hex values; the computed-equals-stored match over each pinned range, plus the rated-timing oracle below, is the confirmation (the fallback the brief allows when only presence is published).
+
+### Rated profile values (the value oracle)
+
+The decoded XMP profile 1 and the decoded EXPO profile 1 each reproduce the part's box rating, two independent ways. Asserted by `xmp_profile1_is_rated_ddr5_6000_38_38_38_78_1v25` and `expo_profile1_is_rated_ddr5_6000_38_38_38_78_1v25`, with `xmp_and_expo_profile1_agree_field_by_field` cross-checking that the two formats decode to identical rated values.
+
+| Parameter | Value | Source |
+| --- | --- | --- |
+| Data rate | DDR5-6000 | tCK 333 ps (LE u16 at XMP profile+5 / EXPO profile+4); 2,000,000 / 333 rounded to nearest 100 (the same rounding as the base block). |
+| Rated CAS latency | CL38 | tAA 12654 ps / tCK 333 ps = 38 (rounded to nearest whole cycle). |
+| tRCD / tRP | 12654 ps each (38 clocks) | XMP profile +15 / +17, EXPO profile +8 / +10, LE ps. |
+| tRAS | 25974 ps (78 clocks) | XMP profile +19, EXPO profile +12, LE ps. |
+| VDD / VDDQ | 1.250 V each | Voltage byte `0x25`; `(byte>>5)*1000 + (byte&0x1f)*50` mV = 1 V + 5x50 mV = 1250 mV. |
+| VPP | 1.800 V | Voltage byte `0x30`; 1 V + 16x50 mV = 1800 mV. |
+| XMP profile names | "TG-6000-38-38-78", "TG-5600-40-40-84" | XMP header bytes 654-669 / 670-685, ASCII, trailing padding trimmed. |
+
+This closes the Phase 1 rated-speed marker: DDR5-6000 38-38-38-78 at 1.25 V is now decoded and verified, not just asserted from the part rating. Profile 2 of each region (DDR5-5600 40-40-84 at 1.20 V) is decoded and asserted too (`xmp_profile2_is_rated_ddr5_5600_40_40_84`, `expo_profile2_...`), but it is not the box headline.
+
+### Decoded vs preserved-raw vs deferred
+
+- **Decoded and verified:** the four section CRCs; per profile, the cycle time / data rate, rated CAS latency, tAA, tRCD, tRP, tRAS, and VDD / VDDQ / VPP; and the XMP profile names.
+- **Deferred (present inside the CRC-confirmed region, not surfaced):** the remaining profile timings (tRC, tWR, the tRFC family, and the bank-group-class parameters), the XMP `vMemCtrl` rail and the command-rate / DIMMs-per-channel metadata, and the EXPO per-profile enable-bit semantics. These bytes are covered by the section CRC but the rated-timing oracle does not reach them, so they are left in the image rather than claimed. XMP profile presence is gated on the pinned per-profile enable bit (byte 643); EXPO profile presence is gated on a non-zero cycle time, since its enable-bit layout was not confidently pinned.
