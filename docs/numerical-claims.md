@@ -132,3 +132,34 @@ This closes the Phase 1 rated-speed marker: DDR5-6000 38-38-38-78 at 1.25 V is n
 
 - **Decoded and verified:** the four section CRCs; per profile, the cycle time / data rate, rated CAS latency, tAA, tRCD, tRP, tRAS, and VDD / VDDQ / VPP; and the XMP profile names.
 - **Deferred (present inside the CRC-confirmed region, not surfaced):** the remaining profile timings (tRC, tWR, the tRFC family, and the bank-group-class parameters), the XMP `vMemCtrl` rail and the command-rate / DIMMs-per-channel metadata, and the EXPO per-profile enable-bit semantics. These bytes are covered by the section CRC but the rated-timing oracle does not reach them, so they are left in the image rather than claimed. XMP profile presence is gated on the pinned per-profile enable bit (byte 643); EXPO profile presence is gated on a non-zero cycle time, since its enable-bit layout was not confidently pinned.
+
+## Timing-relationship and speed-bin lint rules (Phase 9b)
+
+The second family of lint rules checks that the decoded timings are internally self-consistent (relationships that hold for any DDR5 timing set) and standard where they should be. Every relationship below is satisfied by the fixture, which is why it lints clean; a violation is a finding. No rule compares a vendor profile to JEDEC limits, so an overclock profile is never flagged for being tighter or faster than a bin.
+
+### Relationships verified on the fixture
+
+| Relationship | Severity if violated | Fixture base block | Holds |
+| --- | --- | --- | --- |
+| tRC = tRAS + tRP (exact identity) | Error | 48640 = 32000 + 16640 ps | yes |
+| tRAS >= tRCD | Error | 32000 >= 16640 ps | yes |
+| tRC >= tRAS | Error | 48640 >= 32000 ps | yes |
+| CL = tAA / tCK is an integer | Warning | 16640 / 416 = 40 | yes |
+| CL is in the supported-CAS set | Error | 40 in {22, 24, ..., 40} | yes |
+| tRCD, tRP are whole multiples of tCK | Warning | 16640 / 416 = 40 each | yes |
+| data rate is a JEDEC-standard rate | Info | 4800 in the bin list | yes |
+
+The two vendor profiles satisfy the applicable subset (tRC and the supported-set check are base-only, since a profile carries neither): DDR5-6000 profile · tRAS 25974 >= tRCD 12654, CL = 12654 / 333 = 38 exactly, tRCD/tRP = 38 x 333, rate 6000 standard. DDR5-5600 profile · tRAS 29988 >= tRCD 14280, CL = 14280 / 357 = 40 exactly, rate 5600 standard.
+
+### JEDEC standard DDR5 data rates (the pinned list)
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Standard DDR5 rate ladder | {3200, 3600, 4000, 4400, 4800, 5200, 5600, 6000, 6400, 6800, 7200, 7600, 8000, 8400, 8800} MT/s | JEDEC DDR5 standard JESD79-5 and its addenda: the original defined bins through 6400, JESD79-5A added the 5600 and 6400 timing definitions, the April 2024 JESD79-5C update added 8800. The ladder steps 400 MT/s. |
+| Fixture rates, all standard | 4800 (base), 5600 and 6000 (vendor) | All three are members of the ladder; the recognized-rate rule (Info-only) emits nothing. |
+
+The rate list backs an `Info`-level observation only (a vendor profile may legitimately ship a custom rate), so a list omission can never produce a false error. Facts (which data rates JEDEC defines) are not copyrightable; the list and the relationship rules were written from the definitions, no licensed source copied.
+
+### Deferred (tracked follow-on)
+
+Full JEDEC sub-grade-table conformance (matching a bin's specific tAA/tRCD/tRP limits) is deferred: it needs the per-bin JEDEC timing tables pinned and carries the base-versus-vendor nuance that an overclock profile is expected to beat JEDEC limits. The tFAW >= 4 x tRRD_S ordering is deferred because tRRD_S is not in the Phase 3 decoded set (only tRRD_L is), so the rule has no input.

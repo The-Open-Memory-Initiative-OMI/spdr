@@ -42,7 +42,7 @@ pub use identity::{
     BankGroups, BanksPerBankGroup, DensityPerDie, DeviceType, IdentityAndBase, IoWidth, ModuleType,
     PackageType, SpdRevision, decode_identity_and_base,
 };
-pub use lint::{Finding, Severity, lint};
+pub use lint::{ClockTimingParam, Finding, Severity, TimingOrder, lint};
 pub use manufacturing::{
     ManufacturerId, Manufacturing, ManufacturingDate, SerialNumber, decode_manufacturing,
 };

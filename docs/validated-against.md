@@ -86,6 +86,15 @@ Offsets are pinned against memtest86plus `system/spd.c` (the XMP magic and per-p
 
 This **closes the last reference markers carried for the fixture**: the Phase 1 rated-speed marker (DDR5-6000 38-38-38-78 at 1.25 V, now decoded and verified, not just the part rating) and the Phase 2 XMP and EXPO section-CRC markers (now computed-equals-stored for all four sections).
 
+### Linter, expanded rule set (Phase 9b)
+
+Under the Phase 9b rule set (timing-relationship, clock-consistency, and speed-bin rules added to the Phase 8 capacity rule), the fixture still produces **zero lint findings**, with the base block and both vendor profiles passing every applicable rule. The relationships it satisfies:
+
+- **Base block:** tRC = tRAS + tRP (48640 = 32000 + 16640 ps); tRAS >= tRCD (32000 >= 16640); tRC >= tRAS (48640 >= 32000); the operating CL = tAA / tCK = 16640 / 416 = 40 is an integer and is in the decoded supported-CAS set {22, 24, ..., 40}; tRCD and tRP are whole multiples of tCK; the base rate 4800 MT/s is a JEDEC-standard bin.
+- **Vendor profiles** (the applicable subset, since a profile carries no tRC and no supported-CAS set): the DDR5-6000 profile has tRAS 25974 >= tRCD 12654, an integer CL of 38 (12654 / 333), tRCD/tRP whole multiples of tCK, and a standard 6000 rate; the DDR5-5600 profile has tRAS 29988 >= tRCD 14280, an integer CL of 40, and a standard 5600 rate.
+
+This extends the `fixture_lints_clean` invariant to the new rules: every rule emits only on a genuine violation, and no rule flags a vendor profile for being tighter or faster than a JEDEC bin (the recognized-rate check is Info-only, and no rule compares a profile to JEDEC limits). The full JEDEC sub-grade-table conformance and the tFAW >= 4 x tRRD_S ordering (tRRD_S is not decoded) are deferred, recorded in `docs/numerical-claims.md`. The relationships, the standard-rate list, and their sources are pinned in `docs/numerical-claims.md`.
+
 ### Reference markers
 
 All carried markers are now closed: the main configuration CRC in Phase 2, the module manufacturer ID and manufacturing date in Phase 5, and the rated speed and the XMP / EXPO section CRCs in Phase 9a above. The remaining unimplemented surface is not a reference marker but deferred decode work, gated on real fixtures: the SODIMM / RDIMM / LRDIMM module-specific blocks, and a semantic-linter pass over the now-decoded XMP/EXPO profiles (Phase 9b).
