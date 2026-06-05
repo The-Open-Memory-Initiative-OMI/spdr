@@ -36,18 +36,23 @@ fn run_all_decoders(data: &[u8]) {
 
 proptest! {
     /// Arbitrary bytes · for a generated image of length `0..=2048`, no decoder
-    /// panics. The length spans below, at, and above the 1024-byte SPD size, so
-    /// short, full, and over-long images are all exercised.
+    /// panics, and neither does the linter. The length spans below, at, and above
+    /// the 1024-byte SPD size, so short, full, and over-long images are all
+    /// exercised. `lint` does a guarded modulo, so this confirms it never divides
+    /// by zero or panics: it either decodes and checks or fails to decode and
+    /// skips.
     #[test]
     fn arbitrary_bytes_panics_no_decoder(
         data in proptest::collection::vec(any::<u8>(), 0..=2048),
     ) {
         run_all_decoders(&data);
+        spdr::lint(&data, &mut |_| {});
     }
 
     /// Single-byte mutation · starting from the real fixture, set one byte at a
-    /// proptest-chosen index to a proptest-chosen value; no decoder panics.
-    /// Shrinking yields the minimal offending `(index, value)` if one exists.
+    /// proptest-chosen index to a proptest-chosen value; no decoder and not the
+    /// linter panics. Shrinking yields the minimal offending `(index, value)` if
+    /// one exists.
     #[test]
     fn single_byte_mutation_panics_no_decoder(
         index in 0usize..FIXTURE.len(),
@@ -56,6 +61,7 @@ proptest! {
         let mut img = FIXTURE.to_vec();
         img[index] = value;
         run_all_decoders(&img);
+        spdr::lint(&img, &mut |_| {});
     }
 }
 

@@ -83,3 +83,16 @@ Decoded from the fixture; this block sits at bytes 512-554, past the byte-509 en
 The JEP-106 name "Team Group Inc." is the registered JEDEC name for the TEAMGROUP brand; "SK Hynix" likewise. Both come from the freeipmi JEDEC manufacturer ID table (a public reproduction of the JEP-106 assignments). Only the fixture's two entries are a verified correctness claim; other table entries (Micron, Samsung, Winbond) are cited reference data.
 
 Test counts and the toolchain version are operational facts recorded in the per-phase implementation docs, not public correctness claims; they are deliberately not pinned in this ledger so it does not go stale each phase.
+
+## Capacity formula and consistency rule (Phase 8)
+
+The linter's first rule checks the precondition of the JEDEC module-capacity formula. The formula and its source are pinned here so the rule and the fixture's capacity can be audited.
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Device count per rank (per channel) | primary bus width per channel / SDRAM I/O width = 32 / 8 = 4 | memtest86plus `parse_spd_ddr5` (`system/spd.c`): `cur_rank *= 1 << (bus_width + 3); cur_rank /= 1 << (io_width + 2)`. The geometry fields (`die_size`, `width`, `ranks`) are the same ones pyhwinfo `spd_eeprom.py` decodes; decode-dimms computes the analogous product for earlier DDR generations. |
+| Module-capacity formula | capacity = (bus width / I/O width) x density per die x dies per package x package ranks per channel x channels | Same memtest86plus per-rank accumulation: density x `1<<(die-1)` x 2 channels x `1<<(bus+3)` / `1<<(io+2)` x `1<<ranks`. |
+| Fixture capacity (formula pinned) | 16 GB | 4 devices x 16 Gb x 1 die x 1 rank x 2 channels = 128 Gb = 16 GB. The same 16 GB Phase 1 logged from the decoded geometry, now with the formula pinned; matches the part rating. |
+| Capacity precondition (the rule) | bus width must be a positive integer multiple of the I/O width | If `bus_width mod io_width != 0` (or either is zero), the device count is fractional and capacity is undefined; the reference's integer division would silently truncate. Fixture: `32 mod 8 == 0`, precondition holds, rule emits nothing. |
+
+The rule checks only the divisibility precondition (a guarded modulo, no overflow), not the full capacity product. Facts and formulas are not copyrightable; the rule was reimplemented in Rust from the pinned references, no externally licensed source copied.

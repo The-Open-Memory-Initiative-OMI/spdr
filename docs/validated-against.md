@@ -63,6 +63,10 @@ The limits of that claim, stated honestly:
 - **XMP and EXPO are not JESD400-5.** The advertised DDR5-6000 38-38-38-78 profiles are vendor extensions in the end-user-programmable region, outside the JESD400-5 base content. They are decoded in Phase 9 and are not part of this milestone.
 - **SODIMM, RDIMM, and LRDIMM remain deferred.** Their module-specific register and data-buffer blocks are not decoded; those types still resolve to an explicit not-yet-decoded result, each gated on a real fixture in a later phase.
 
+### Linter baseline (Phase 8)
+
+Under the Phase 8 rule set (the single capacity-consistency rule), the fixture produces **zero lint findings**. Its geometry is internally consistent: the primary bus width per channel (32 bits) is a positive integer multiple of the SDRAM I/O width (x8), so the per-rank device count is the whole number 4, and the capacity derives to 16 GB (matching the part rating and the Phase 1 decode). This is the clean-lint baseline the `fixture_lints_clean` test enforces permanently: as rules are added in later phases, a rule that flags this valid module is a bug in the rule, and that test catches it. The capacity formula and its pinned source are recorded in `docs/numerical-claims.md`.
+
 ### Reference markers to confirm in later phases (not asserted now)
 
 The published XMP and EXPO section CRCs only. These are vendor extensions confirmed in Phase 9. (The main configuration CRC marker is confirmed in Phase 2 above; the module manufacturer ID and manufacturing date markers are confirmed in Phase 5 above.)

@@ -17,11 +17,15 @@
 //! is decoded; SODIMM, RDIMM, and LRDIMM resolve to an explicit not-yet-decoded
 //! result, deferred to later phases gated on real fixtures. Phase 5 adds the
 //! manufacturing information block ([`Manufacturing`], [`decode_manufacturing`]),
-//! including JEP-106 manufacturer resolution.
+//! including JEP-106 manufacturer resolution. Phase 8 opens the linter, the
+//! validation-beyond-CRC pillar ([`Finding`], [`Severity`], [`lint`]): it reports
+//! structured findings for values that are internally inconsistent even in a
+//! CRC-valid SPD, starting with the capacity-consistency rule.
 
 mod crc;
 mod error;
 mod identity;
+mod lint;
 mod manufacturing;
 mod module;
 mod reader;
@@ -33,6 +37,7 @@ pub use identity::{
     BankGroups, BanksPerBankGroup, DensityPerDie, DeviceType, IdentityAndBase, IoWidth, ModuleType,
     PackageType, SpdRevision, decode_identity_and_base,
 };
+pub use lint::{Finding, Severity, lint};
 pub use manufacturing::{
     ManufacturerId, Manufacturing, ManufacturingDate, SerialNumber, decode_manufacturing,
 };
