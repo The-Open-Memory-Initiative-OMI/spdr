@@ -42,6 +42,7 @@ const OFF_DRAM_STEPPING: usize = 554;
 /// and is `None` when the pair is absent, so an unknown manufacturer is reported
 /// as its raw code rather than a guessed name.
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ManufacturerId {
     /// JEP-106 bank, 1-based (bank 1 = no continuation bytes).
     pub bank: u8,
@@ -74,6 +75,7 @@ impl fmt::Display for ManufacturerId {
 /// A module manufacturing date: a calendar year and an ISO-style week number,
 /// each decoded from one BCD byte (the year byte is an offset from 2000).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ManufacturingDate {
     /// Full calendar year (2000 + the BCD year byte).
     pub year: u16,
@@ -104,6 +106,32 @@ impl fmt::Display for SerialNumber {
     }
 }
 
+// Serialize as the eight-hex-digit string `Display` shows ("0104EEF6"), not the
+// raw decimal `u32`. A serial number is an identifier presented in hex
+// everywhere else (`Display`, `Debug`, the published reference); a decimal here
+// would be clearly misleading, so this is a hand-written impl rather than the
+// default derive. `no_std` and `alloc`-free: the digits go into a fixed buffer.
+#[cfg(feature = "serde")]
+impl serde::Serialize for SerialNumber {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut buf = [0u8; 8];
+        for (i, b) in buf.iter_mut().enumerate() {
+            let nibble = ((self.0 >> (28 - i * 4)) & 0xF) as u8;
+            *b = if nibble < 10 {
+                b'0' + nibble
+            } else {
+                b'A' + nibble - 10
+            };
+        }
+        // `buf` is always eight ASCII hex digits, so this is valid UTF-8; the
+        // fallback keeps the path panic-free without `unsafe`.
+        serializer.serialize_str(core::str::from_utf8(&buf).unwrap_or(""))
+    }
+}
+
 /// The decoded manufacturing information block.
 ///
 /// `part_number` borrows from the input image (zero-copy, no `alloc`), so the
@@ -111,6 +139,7 @@ impl fmt::Display for SerialNumber {
 /// or small type, so the struct is `Copy`. Construct it with
 /// [`decode_manufacturing`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Manufacturing<'a> {
     /// Module manufacturer (bytes 512..=513, JEP-106).
     pub module_manufacturer: ManufacturerId,

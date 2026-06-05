@@ -38,6 +38,7 @@ const OFF_ADDRESS_MAPPING: usize = 233;
 /// physical form fields. The unit is named in the type so no caller has to guess,
 /// as [`crate::Picoseconds`] does for timings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Millimeters(pub u8);
 
 impl Millimeters {
@@ -62,6 +63,7 @@ impl fmt::Display for Millimeters {
 /// `0x1f` means no reference raw card (rendered "ZZ"); bit 7 extends the code by
 /// 31 to reach the two-letter range; bits [6:5] carry the card revision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ReferenceRawCard {
     /// No reference raw card used (card code `0x1f`, "ZZ").
     NotUsed,
@@ -108,6 +110,7 @@ impl fmt::Display for ReferenceRawCard {
 /// Every field is a `Copy` scalar or exhaustive enum, so the whole struct is
 /// `Copy`. Construct it via [`decode_module_specific`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct UnbufferedModule {
     /// Module nominal height (byte 230, bits [4:0] + 15 mm). JEDEC encodes this
     /// as the upper bound of a 1 mm range, so a value of 0 means "<= 15 mm".
@@ -134,6 +137,7 @@ pub struct UnbufferedModule {
 
 /// The module-specific decode, dispatched on the module type (byte 3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ModuleSpecific {
     /// Unbuffered (UDIMM): the decoded physical-form block.
     Unbuffered(UnbufferedModule),

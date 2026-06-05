@@ -51,6 +51,7 @@ const OFF_TRTP: usize = 91;
 /// absolute-time field is normalised to picoseconds on decode (the tRFC family,
 /// stored in nanoseconds, is scaled up by 1000).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Picoseconds(pub u32);
 
 impl Picoseconds {
@@ -64,6 +65,7 @@ impl Picoseconds {
 /// A timing expressed as a count of clock cycles (nCK). Kept distinct from the
 /// absolute-time [`Picoseconds`] rather than folded into a single unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ClockCycles(pub u8);
 
 impl ClockCycles {
@@ -78,6 +80,7 @@ impl ClockCycles {
 /// picoseconds) and a clock-count floor (in nCK). The effective constraint a
 /// controller applies is the larger of the two, so both are preserved here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TimingPair {
     /// The absolute-time lower limit.
     pub time: Picoseconds,
@@ -124,12 +127,28 @@ impl fmt::Debug for CasLatencies {
     }
 }
 
+// Serialize as the ascending list of supported CL values, matching `Debug`.
+// The default derive on the newtype would emit the raw 40-bit mask integer,
+// which is clearly misleading (it reads as a meaningless number), so this is one
+// of the few places the brief's "attributes only where a default misleads"
+// becomes a hand-written impl. `collect_seq` is `no_std`- and `alloc`-free.
+#[cfg(feature = "serde")]
+impl serde::Serialize for CasLatencies {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.collect_seq(self.iter())
+    }
+}
+
 /// The decoded base JEDEC timing parameters of an SPD image.
 ///
 /// Absolute-time parameters are [`Picoseconds`]; the bank-group-class parameters
 /// are [`TimingPair`] (a picosecond floor plus an nCK floor). Construct it with
 /// [`decode_timings`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Timings {
     /// Minimum average clock cycle time; sets the base data rate.
     pub tckavg_min: Picoseconds,

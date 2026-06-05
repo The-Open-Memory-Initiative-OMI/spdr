@@ -1,0 +1,126 @@
+---
+source: spdr-cli/tests/cli.rs
+expression: "spdr_cli::render_json(&results).expect(\"the fixture renders as JSON\")"
+---
+{
+  "base_crc": {
+    "computed": 32801,
+    "matches": true,
+    "stored": 32801
+  },
+  "identity_and_base": {
+    "bank_groups": "Eight",
+    "banks_per_bank_group": "Four",
+    "channels_per_dimm": 2,
+    "column_address_bits": 10,
+    "density_per_die": "Gb16",
+    "device_type": "Ddr5",
+    "die_count": 1,
+    "hybrid": false,
+    "io_width": "X8",
+    "module_type": "Udimm",
+    "package_ranks_per_channel": 1,
+    "package_type": "Monolithic",
+    "primary_bus_width_bits": 32,
+    "rank_mix_asymmetric": false,
+    "row_address_bits": 16,
+    "spd_bytes_total": 1024,
+    "spd_revision": {
+      "major": 1,
+      "minor": 0
+    }
+  },
+  "jedec_base_timings": {
+    "supported_cas_latencies": [
+      22,
+      24,
+      26,
+      28,
+      30,
+      32,
+      34,
+      36,
+      38,
+      40
+    ],
+    "taa": 16640,
+    "tccd_l": {
+      "clocks": 8,
+      "time": 5000
+    },
+    "tccd_l_wr": {
+      "clocks": 32,
+      "time": 20000
+    },
+    "tccd_l_wr2": {
+      "clocks": 16,
+      "time": 10000
+    },
+    "tckavg_max": 1000,
+    "tckavg_min": 416,
+    "tfaw": {
+      "clocks": 32,
+      "time": 13333
+    },
+    "tras": 32000,
+    "trc": 48640,
+    "trcd": 16640,
+    "trfc1": 295000,
+    "trfc2": 160000,
+    "trfcsb": 130000,
+    "trp": 16640,
+    "trrd_l": {
+      "clocks": 8,
+      "time": 5000
+    },
+    "trtp": {
+      "clocks": 12,
+      "time": 7500
+    },
+    "twr": 30000,
+    "twtr_l": {
+      "clocks": 16,
+      "time": 10000
+    },
+    "twtr_s": {
+      "clocks": 4,
+      "time": 2500
+    }
+  },
+  "manufacturing": {
+    "dram_manufacturer": {
+      "bank": 1,
+      "code": 45,
+      "name": "SK Hynix"
+    },
+    "dram_stepping": 255,
+    "manufacturing_date": {
+      "week": 37,
+      "year": 2023
+    },
+    "manufacturing_location": 0,
+    "module_manufacturer": {
+      "bank": 5,
+      "code": 111,
+      "name": "Team Group Inc."
+    },
+    "part_number": "UD5-6000",
+    "revision_code": 0,
+    "serial_number": "0104EEF6"
+  },
+  "module_specific": {
+    "Unbuffered": {
+      "max_thickness_back": 1,
+      "max_thickness_front": 2,
+      "module_attributes_raw": 129,
+      "nominal_height": 32,
+      "rank1_address_mirrored": true,
+      "reference_raw_card": {
+        "Card": {
+          "index": 0,
+          "revision": 0
+        }
+      }
+    }
+  }
+}

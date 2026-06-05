@@ -7,6 +7,19 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+[features]
+# Opt-in `Serialize` derives on the public decoded types, for the CLI's `--json`
+# output. Serialize only (no `Deserialize`): the tool is read-only. Off by
+# default, so the default build stays `no_std` and serde-free.
+serde = ["dep:serde"]
+
+[dependencies]
+# `default-features = false` keeps the Serialize path `no_std`-compatible; the
+# `derive` feature brings in the `#[derive(serde::Serialize)]` macro.
+serde = { version = "1", optional = true, default-features = false, features = [
+    "derive",
+] }
+
 [dev-dependencies]
 insta = "1"
 proptest = "1"

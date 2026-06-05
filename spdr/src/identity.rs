@@ -29,6 +29,7 @@ const OFF_MEMORY_CHANNEL_BUS_WIDTH: usize = 235;
 
 /// SPD revision, decoded from byte 1 as two plain (non-BCD) hex nibbles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SpdRevision {
     /// High nibble: major revision.
     pub major: u8,
@@ -44,6 +45,7 @@ impl fmt::Display for SpdRevision {
 
 /// DRAM device type, from byte 2 (the whole-byte "key byte 1").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum DeviceType {
     Ddr3,
     Ddr4,
@@ -72,6 +74,7 @@ impl fmt::Display for DeviceType {
 
 /// Base module type, from the low nibble of byte 3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum ModuleType {
     /// Registered DIMM.
     Rdimm,
@@ -122,6 +125,7 @@ impl fmt::Display for ModuleType {
 
 /// SDRAM density per die, from the low five bits of byte 4 (the JEDEC table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum DensityPerDie {
     Gb4,
     Gb8,
@@ -152,6 +156,7 @@ impl DensityPerDie {
 
 /// SDRAM I/O device width (DQ pins per device), from bits [7:5] of byte 6.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum IoWidth {
     X4,
     X8,
@@ -174,6 +179,7 @@ impl IoWidth {
 
 /// Number of bank groups per die, from bits [7:5] of byte 7.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum BankGroups {
     One,
     Two,
@@ -196,6 +202,7 @@ impl BankGroups {
 
 /// Number of banks within each bank group, from bits [2:0] of byte 7.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum BanksPerBankGroup {
     One,
     Two,
@@ -216,6 +223,7 @@ impl BanksPerBankGroup {
 
 /// SDRAM package construction, from bits [7:5] of byte 4.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum PackageType {
     /// A single die in the package.
     Monolithic,
@@ -248,6 +256,7 @@ impl fmt::Display for PackageType {
 /// Every field is a `Copy` scalar or an exhaustive enum borrowed from nothing,
 /// so the whole struct is `Copy`. Construct it with [`decode_identity_and_base`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct IdentityAndBase {
     /// Total addressable size of the SPD device in bytes (byte 0, bits [6:4]).
     pub spd_bytes_total: u16,

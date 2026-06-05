@@ -1,0 +1,71 @@
+---
+source: spdr-cli/tests/cli.rs
+expression: "spdr_cli::render_human(&results)"
+---
+[Identity and base]
+  SPD device size:               1024 bytes
+  SPD revision:                  1.0
+  DRAM device type:              DDR5 SDRAM
+  Module type:                   UDIMM
+  Hybrid module:                 no
+  Density per die:               16 Gb
+  Package:                       monolithic
+  Dies per package:              1
+  Row address bits:              16
+  Column address bits:           10
+  I/O width:                     x8
+  Bank groups:                   8
+  Banks per bank group:          4
+  Package ranks per channel:     1
+  Rank mix:                      symmetric
+  Channels per DIMM:             2
+  Primary bus width per channel: 32 bits
+
+[Base configuration CRC]
+  Reported status of the base CRC (bytes 0-509). Not a verdict; the vendor section CRCs are separate.
+  Computed:                      0x8021
+  Stored:                        0x8021
+  Match:                         yes
+
+[JEDEC base timings]
+  SPD JEDEC base timings. The rated DDR5 profile lives in XMP/EXPO and is decoded in a later version.
+  Base data rate:                DDR5-4800 (4800 MT/s, JEDEC base)
+  tCKAVGmin:                     416 ps
+  tCKAVGmax:                     1000 ps
+  Supported CAS latencies:       22, 24, 26, 28, 30, 32, 34, 36, 38, 40
+  tAA:                           16640 ps
+  tRCD:                          16640 ps
+  tRP:                           16640 ps
+  tRAS:                          32000 ps
+  tRC:                           48640 ps
+  tWR:                           30000 ps
+  tRFC1:                         295000 ps
+  tRFC2:                         160000 ps
+  tRFCsb:                        130000 ps
+  tRRD_L:                        5000 ps / 8 nCK
+  tCCD_L:                        5000 ps / 8 nCK
+  tCCD_L_WR:                     20000 ps / 32 nCK
+  tCCD_L_WR2:                    10000 ps / 16 nCK
+  tFAW:                          13333 ps / 32 nCK
+  tWTR_L:                        10000 ps / 16 nCK
+  tWTR_S:                        2500 ps / 4 nCK
+  tRTP:                          7500 ps / 12 nCK
+
+[Module-specific]
+  Module type:                   UDIMM (unbuffered)
+  Nominal height:                32 mm
+  Max thickness, front:          2 mm
+  Max thickness, back:           1 mm
+  Reference raw card:            A revision 0
+  Rank 1 address mapping:        mirrored
+  Module attributes (raw):       0x81
+
+[Manufacturing]
+  Module manufacturer:           Team Group Inc.
+  Manufacturing location:        0
+  Manufacturing date:            week 37 of 2023
+  Serial number:                 0104EEF6
+  Part number:                   UD5-6000
+  Revision code:                 0
+  DRAM manufacturer:             SK Hynix
+  DRAM stepping:                 255 (not specified)

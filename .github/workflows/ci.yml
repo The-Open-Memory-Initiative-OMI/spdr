@@ -17,6 +17,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # The workspace build always enables the core's `serde` feature through the
+      # CLI, so this guards that the core still builds serde-free and no_std.
+      - name: Core no_std build (default features)
+        run: cargo build -p spdr
+
       - name: Format
         run: cargo fmt --check
 

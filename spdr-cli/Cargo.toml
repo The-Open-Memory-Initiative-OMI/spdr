@@ -7,8 +7,23 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+# The crate is `spdr-cli`, but the user-facing binary is `spdr`.
+[[bin]]
+name = "spdr"
+path = "src/main.rs"
+
 [dependencies]
-spdr = { path = "../spdr" }
+# The CLI enables the core's `serde` feature for `--json`; the core stays
+# serde-free by default (guarded in CI by `cargo build -p spdr`).
+spdr = { path = "../spdr", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+insta = "1"
+assert_cmd = "2"
+tempfile = "3"
+proptest = "1"
 
 [lints]
 workspace = true

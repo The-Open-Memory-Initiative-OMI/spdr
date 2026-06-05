@@ -20,6 +20,7 @@ const OFF_STORED_CRC_MSB: usize = 511;
 
 /// The outcome of a CRC verification: a small `Copy` status, never a hard error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CrcStatus {
     /// CRC computed over the covered byte range.
     pub computed: u16,
