@@ -20,6 +20,12 @@ pub enum DecodeError {
     /// A field that the spec defines as an enumeration held a value with no
     /// defined meaning. `field` names the field; `value` is the raw encoding.
     UnknownEnum { field: &'static str, value: u8 },
+
+    /// A field the spec defines as ASCII text held a byte outside the ASCII
+    /// range (>= 0x80). `field` names the field; `offset` is the byte index of
+    /// the first offending byte. The decoder reports this rather than lossily
+    /// reinterpreting the bytes or panicking.
+    NonAscii { field: &'static str, offset: usize },
 }
 
 impl fmt::Display for DecodeError {
@@ -31,6 +37,9 @@ impl fmt::Display for DecodeError {
             ),
             DecodeError::UnknownEnum { field, value } => {
                 write!(f, "unknown value {value:#04x} for field `{field}`")
+            }
+            DecodeError::NonAscii { field, offset } => {
+                write!(f, "non-ASCII byte in field `{field}` at offset {offset}")
             }
         }
     }

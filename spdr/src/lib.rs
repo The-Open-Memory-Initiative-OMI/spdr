@@ -15,11 +15,14 @@
 //! adds the module-specific block and the module-type dispatch
 //! ([`ModuleSpecific`], [`decode_module_specific`]): the unbuffered (UDIMM) case
 //! is decoded; SODIMM, RDIMM, and LRDIMM resolve to an explicit not-yet-decoded
-//! result, deferred to later phases gated on real fixtures.
+//! result, deferred to later phases gated on real fixtures. Phase 5 adds the
+//! manufacturing information block ([`Manufacturing`], [`decode_manufacturing`]),
+//! including JEP-106 manufacturer resolution.
 
 mod crc;
 mod error;
 mod identity;
+mod manufacturing;
 mod module;
 mod reader;
 mod timing;
@@ -29,6 +32,9 @@ pub use error::DecodeError;
 pub use identity::{
     BankGroups, BanksPerBankGroup, DensityPerDie, DeviceType, IdentityAndBase, IoWidth, ModuleType,
     PackageType, SpdRevision, decode_identity_and_base,
+};
+pub use manufacturing::{
+    ManufacturerId, Manufacturing, ManufacturingDate, SerialNumber, decode_manufacturing,
 };
 pub use module::{
     Millimeters, ModuleSpecific, ReferenceRawCard, UnbufferedModule, decode_module_specific,

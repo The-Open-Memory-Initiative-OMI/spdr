@@ -37,6 +37,32 @@ Offsets are pinned against edlf `DDR5SPDEditor` (`ddr5spd_structs.h`) and the Un
 
 SODIMM, RDIMM, and LRDIMM module-specific decoding is **not yet implemented**. Those types resolve to an explicit not-yet-decoded result that names the type and parses no fields: their substantive content is the per-type register (RCD) and data-buffer block at bytes 240+, which is not guessed without a real fixture. Decoding each is deferred to a later phase gated on a real module of that type.
 
+### Confirmed by Phase 5 (manufacturing block)
+
+The manufacturing block sits at bytes 512-554, past the byte-509 end of the main CRC, so the Phase 2 integrity floor does not reach it. The verification is the published reference for serial 0104eef6 instead. Four fields are self-verifying oracles; the rest are confirmed at review against DDR5SPDEditor's readout.
+
+- Module manufacturer: `0x04ef` -> JEP-106 bank 5, code 0x6f -> "Team Group Inc." (the TEAMGROUP brand). **Oracle match.**
+- Manufacturing date: week 37 of 2023 (bytes 515-516 BCD). **Oracle match.**
+- Serial number: `0104EEF6` (bytes 517-520). **Oracle match.**
+- Part number: "UD5-6000" (bytes 521-550 ASCII, trailing padding trimmed). **Oracle match.**
+- Manufacturing location: 0 (byte 514, manufacturer-specific raw code).
+- Module revision code: 0 (byte 551).
+- DRAM manufacturer: `0x80ad` -> JEP-106 bank 1, code 0x2d -> "SK Hynix" (bytes 552-553).
+- DRAM stepping: 255 (`0xff`, the conventional "not specified") (byte 554).
+
+Offsets pinned against edlf `DDR5SPDEditor` (`ddr5spd_structs.h`) and pyhwinfo; the JEP-106 parity/bank convention against decode-dimms; manufacturer names against the freeipmi JEDEC manufacturer ID table. The JEP-106 names "Team Group Inc." and "SK Hynix" are the fixture's two verified entries; the rest of the embedded table is cited reference data.
+
+This **closes the two reference markers carried since Phase 1**: the module manufacturer ID `0x04ef` and the manufacturing date week 37 of 2023 are now decoded and matching the published reference, no longer to-be-confirmed.
+
+### Milestone: base JESD400-5 content decode complete for unbuffered DDR5 modules
+
+With Phase 5, the base JESD400-5 SPD content is fully decoded for an unbuffered (UDIMM) DDR5 module: identity and base geometry, the base configuration CRC, the base JEDEC timings, the unbuffered module-specific block, and the manufacturing information block. The fixture decodes end to end and its published-reference fields (CRC `0x8021`, manufacturer 0x04ef -> TEAMGROUP, serial 0104eef6, part UD5-6000, week 37 / 2023) all reproduce exactly.
+
+The limits of that claim, stated honestly:
+
+- **XMP and EXPO are not JESD400-5.** The advertised DDR5-6000 38-38-38-78 profiles are vendor extensions in the end-user-programmable region, outside the JESD400-5 base content. They are decoded in Phase 9 and are not part of this milestone.
+- **SODIMM, RDIMM, and LRDIMM remain deferred.** Their module-specific register and data-buffer blocks are not decoded; those types still resolve to an explicit not-yet-decoded result, each gated on a real fixture in a later phase.
+
 ### Reference markers to confirm in later phases (not asserted now)
 
-Module manufacturer ID `0x04ef`, manufacturing date week 37 of 2023, plus the published XMP and EXPO section CRCs. The manufacturing fields are confirmed in a later phase; the XMP and EXPO section CRCs are vendor extensions confirmed in Phase 9. (The main configuration CRC marker is now confirmed above.)
+The published XMP and EXPO section CRCs only. These are vendor extensions confirmed in Phase 9. (The main configuration CRC marker is confirmed in Phase 2 above; the module manufacturer ID and manufacturing date markers are confirmed in Phase 5 above.)

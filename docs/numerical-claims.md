@@ -20,7 +20,7 @@ Every number that appears in the docs, the README, or a commit message, paired w
 | Module width / ECC | 64-bit, non-ECC | Derived: 2 channels x 32-bit; ECC extension bits [4:3] = 0. |
 | Module capacity | 16 GB | Derived from the decoded geometry (8 x8 devices x 16 Gb x 1 rank); matches the part rating. |
 | Rated speed / timings / voltage | DDR5-6000, 38-38-38-78, 1.25 V | Part rating (TEAMGROUP T-Create Expert 6000, part code CTCED532G6000HC38ADC01); to be confirmed against the SPD timing bytes in a later phase. |
-| Reference markers (not yet decoded) | mfr `0x04ef`, week 37 / 2023 | Provenance note from the dump source; to be confirmed in a later phase. |
+| Reference markers (now confirmed in Phase 5) | mfr `0x04ef`, week 37 / 2023 | Originally a provenance note from the dump source; decoded and confirmed against the published reference in Phase 5 (see below). |
 
 ## Main configuration CRC (Phase 2)
 
@@ -64,5 +64,22 @@ Decoded from the fixture (a UDIMM). Offsets are pinned against edlf `DDR5SPDEdit
 | Reference raw card | card A, revision 0 | Byte 232 = 0x00; code 0 -> index 0 (alphabet `ABCDEFGHJKLMNPRTUVWY`), revision bits [6:5] = 0, no extension. |
 | Rank 1 address mapping | mirrored | Byte 233 bit 0 = 1; `byte & 0x01`. |
 | Module attributes raw | 0x81 | Byte 233 preserved whole; bit 0 interpreted above, bit 7 is a reserved-set bit left for the linter. |
+
+## Manufacturing information block (Phase 5)
+
+Decoded from the fixture; this block sits at bytes 512-554, past the byte-509 end of the main CRC, so there is no integrity floor here. The four oracle fields match the published reference for serial 0104eef6. Offsets pinned against edlf `DDR5SPDEditor` and pyhwinfo; JEP-106 parity/bank convention against decode-dimms; manufacturer names against the freeipmi JEDEC table.
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Module manufacturer ID | `0x04ef` -> "Team Group Inc." (TEAMGROUP) | Bytes 512-513; JEP-106 bank 5, code 0x6f; **confirmed** against the published reference. |
+| Manufacturing date | week 37 of 2023 | Bytes 515-516 BCD (`0x23`, `0x37`); year = 2000 + 23; **confirmed** against the published reference. |
+| Serial number | `0104EEF6` | Bytes 517-520, big-endian; **confirmed** against the published reference (serial 0104eef6). |
+| Part number | "UD5-6000" | Bytes 521-550 ASCII, trailing padding trimmed; **confirmed** against the published reference. |
+| Manufacturing location | 0 | Byte 514, manufacturer-specific raw code; confirmed at review. |
+| Module revision code | 0 | Byte 551, raw; confirmed at review. |
+| DRAM manufacturer ID | `0x80ad` -> "SK Hynix" | Bytes 552-553; JEP-106 bank 1, code 0x2d; confirmed at review. |
+| DRAM stepping | 255 (`0xff`, not specified) | Byte 554, raw; confirmed at review. |
+
+The JEP-106 name "Team Group Inc." is the registered JEDEC name for the TEAMGROUP brand; "SK Hynix" likewise. Both come from the freeipmi JEDEC manufacturer ID table (a public reproduction of the JEP-106 assignments). Only the fixture's two entries are a verified correctness claim; other table entries (Micron, Samsung, Winbond) are cited reference data.
 
 Test counts and the toolchain version are operational facts recorded in the per-phase implementation docs, not public correctness claims; they are deliberately not pinned in this ledger so it does not go stale each phase.

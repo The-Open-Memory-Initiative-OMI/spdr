@@ -44,4 +44,18 @@ impl<'a> SpdImage<'a> {
                 len: self.bytes.len(),
             })
     }
+
+    /// Borrow `len` bytes starting at `offset`, or [`DecodeError::Truncated`] if
+    /// the image is too short to contain them. Zero-copy: the returned slice
+    /// borrows the input image for the image's lifetime, so a decoded value can
+    /// hold it without a copy (the part-number `&str` does). Uses `slice::get`,
+    /// never indexing. `len` must be at least 1.
+    pub fn slice(&self, offset: usize, len: usize) -> Result<&'a [u8], DecodeError> {
+        self.bytes
+            .get(offset..offset + len)
+            .ok_or(DecodeError::Truncated {
+                offset: offset + len - 1,
+                len: self.bytes.len(),
+            })
+    }
 }

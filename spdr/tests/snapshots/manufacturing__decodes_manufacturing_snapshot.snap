@@ -1,0 +1,17 @@
+---
+source: spdr/tests/manufacturing.rs
+expression: decoded
+---
+Manufacturing {
+    module_manufacturer: ManufacturerId { bank: 5, code: 0x6f, name: Some("Team Group Inc.") },
+    manufacturing_location: 0,
+    manufacturing_date: ManufacturingDate {
+        year: 2023,
+        week: 37,
+    },
+    serial_number: SerialNumber(0104EEF6),
+    part_number: "UD5-6000",
+    revision_code: 0,
+    dram_manufacturer: ManufacturerId { bank: 1, code: 0x2d, name: Some("SK Hynix") },
+    dram_stepping: 255,
+}
