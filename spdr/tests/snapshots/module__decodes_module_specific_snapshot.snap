@@ -1,0 +1,23 @@
+---
+source: spdr/tests/module.rs
+expression: decoded
+---
+Unbuffered(
+    UnbufferedModule {
+        nominal_height: Millimeters(
+            32,
+        ),
+        max_thickness_front: Millimeters(
+            2,
+        ),
+        max_thickness_back: Millimeters(
+            1,
+        ),
+        reference_raw_card: Card {
+            index: 0,
+            revision: 0,
+        },
+        rank1_address_mirrored: true,
+        module_attributes_raw: 129,
+    },
+)

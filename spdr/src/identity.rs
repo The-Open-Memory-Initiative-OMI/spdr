@@ -382,7 +382,10 @@ fn decode_device_type(byte2: u8) -> Result<DeviceType, DecodeError> {
 }
 
 /// Byte 3: base module type in bits [3:0]; hybrid flag in bit 7.
-fn decode_module_type(byte3: u8) -> Result<(ModuleType, bool), DecodeError> {
+///
+/// Crate-visible so the module-specific dispatch ([`crate::decode_module_specific`])
+/// routes on the same single decode of byte 3, rather than duplicating it.
+pub(crate) fn decode_module_type(byte3: u8) -> Result<(ModuleType, bool), DecodeError> {
     let hybrid = byte3 & 0x80 != 0;
     let module_type = match byte3 & 0x0F {
         0x01 => ModuleType::Rdimm,

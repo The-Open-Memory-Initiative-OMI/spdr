@@ -51,4 +51,18 @@ All decoded from the fixture and cross-checked against independent decoders (dec
 | tWTR_L / tWTR_S | 10 ns / 16 nCK · 2.5 ns / 4 nCK | Bytes 85-87 / 88-90. |
 | tRTP | 7.5 ns / 12 nCK | Bytes 91-93. |
 
-The unit-test suite count (16 tests) and the toolchain version (Rust 1.96.0 stable) are operational facts recorded in `docs/implementations/2026-06-04-phase-1-foundation.md`, not public correctness claims.
+## Unbuffered module-specific block (Phase 4)
+
+Decoded from the fixture (a UDIMM). Offsets are pinned against edlf `DDR5SPDEditor` (`ddr5spd_structs.h`) and the UniC `SCA08GU04M1F1C-48B` datasheet block map; encodings against decode-dimms and JEDEC Standard 21-C Annex K. Bytes 230-233 fall inside the main-CRC-covered range (0-509), so they are already integrity-checked (the floor, not content correctness).
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Module type dispatch | UDIMM decoded; SODIMM / RDIMM / LRDIMM deferred | Byte 3 low nibble (0x02 = UDIMM); other registered types resolve to `NotYetDecoded`, no fixture yet. |
+| Module nominal height | 32 mm | Byte 230 = 0x11; `(byte & 0x1f) + 15`; top of the 31 < h <= 32 mm range (a 31.25 mm UDIMM). |
+| Module max thickness, front | 2 mm | Byte 231 bits [3:0] = 0x1; `(nibble) + 1`. |
+| Module max thickness, back | 1 mm | Byte 231 bits [7:4] = 0x0; `(nibble) + 1`. |
+| Reference raw card | card A, revision 0 | Byte 232 = 0x00; code 0 -> index 0 (alphabet `ABCDEFGHJKLMNPRTUVWY`), revision bits [6:5] = 0, no extension. |
+| Rank 1 address mapping | mirrored | Byte 233 bit 0 = 1; `byte & 0x01`. |
+| Module attributes raw | 0x81 | Byte 233 preserved whole; bit 0 interpreted above, bit 7 is a reserved-set bit left for the linter. |
+
+Test counts and the toolchain version are operational facts recorded in the per-phase implementation docs, not public correctness claims; they are deliberately not pinned in this ledger so it does not go stale each phase.

@@ -11,11 +11,16 @@
 //! identity-and-base configuration block ([`IdentityAndBase`]). Phase 2 adds the
 //! CRC-16 primitive ([`crc16`]) and the base configuration CRC check
 //! ([`verify_base_crc`]), a queryable check that never blocks decoding. Phase 3
-//! adds the base JEDEC timing block ([`Timings`], [`decode_timings`]).
+//! adds the base JEDEC timing block ([`Timings`], [`decode_timings`]). Phase 4
+//! adds the module-specific block and the module-type dispatch
+//! ([`ModuleSpecific`], [`decode_module_specific`]): the unbuffered (UDIMM) case
+//! is decoded; SODIMM, RDIMM, and LRDIMM resolve to an explicit not-yet-decoded
+//! result, deferred to later phases gated on real fixtures.
 
 mod crc;
 mod error;
 mod identity;
+mod module;
 mod reader;
 mod timing;
 
@@ -24,6 +29,9 @@ pub use error::DecodeError;
 pub use identity::{
     BankGroups, BanksPerBankGroup, DensityPerDie, DeviceType, IdentityAndBase, IoWidth, ModuleType,
     PackageType, SpdRevision, decode_identity_and_base,
+};
+pub use module::{
+    Millimeters, ModuleSpecific, ReferenceRawCard, UnbufferedModule, decode_module_specific,
 };
 pub use reader::SpdImage;
 pub use timing::{CasLatencies, ClockCycles, Picoseconds, TimingPair, Timings, decode_timings};
