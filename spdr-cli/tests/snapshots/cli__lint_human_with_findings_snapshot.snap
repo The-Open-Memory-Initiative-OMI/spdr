@@ -1,0 +1,12 @@
+---
+source: spdr-cli/tests/cli.rs
+expression: "spdr_cli::render_lint_human(&report)"
+---
+[Lint]
+  3 findings: 1 error, 1 warning, 1 info.
+  error · trc-identity-mismatch
+    tRC 48641 ps does not equal tRAS + tRP (32000 + 16640 = 48640 ps); the row-cycle identity tRC = tRAS + tRP is violated
+  warning · reserved-bytes-nonzero
+    reserved byte at offset 128 is 0xff, but a reference-declared-reserved region must be zero
+  info · non-standard-data-rate
+    data rate 5000 MT/s is not a recognized JEDEC-standard DDR5 rate

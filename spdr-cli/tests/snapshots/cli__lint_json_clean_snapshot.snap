@@ -1,0 +1,5 @@
+---
+source: spdr-cli/tests/cli.rs
+expression: "spdr_cli::render_lint_json(&report).expect(\"the clean fixture renders as JSON\")"
+---
+[]

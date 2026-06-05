@@ -1,0 +1,6 @@
+---
+source: spdr-cli/tests/cli.rs
+expression: "spdr_cli::render_lint_human(&report)"
+---
+[Lint]
+  No findings. The SPD is internally consistent under the current rule set.

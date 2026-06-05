@@ -1,0 +1,33 @@
+---
+source: spdr-cli/tests/cli.rs
+expression: "spdr_cli::render_lint_json(&report).expect(\"findings render as JSON\")"
+---
+[
+  {
+    "code": "trc-identity-mismatch",
+    "fields": {
+      "tras_ps": 32000,
+      "trc_ps": 48641,
+      "trp_ps": 16640
+    },
+    "message": "tRC 48641 ps does not equal tRAS + tRP (32000 + 16640 = 48640 ps); the row-cycle identity tRC = tRAS + tRP is violated",
+    "severity": "error"
+  },
+  {
+    "code": "reserved-bytes-nonzero",
+    "fields": {
+      "offset": 128,
+      "value": 255
+    },
+    "message": "reserved byte at offset 128 is 0xff, but a reference-declared-reserved region must be zero",
+    "severity": "warning"
+  },
+  {
+    "code": "non-standard-data-rate",
+    "fields": {
+      "data_rate_mt_s": 5000
+    },
+    "message": "data rate 5000 MT/s is not a recognized JEDEC-standard DDR5 rate",
+    "severity": "info"
+  }
+]

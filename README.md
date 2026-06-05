@@ -2,7 +2,7 @@
 
 A read-only, complete JESD400-5 SPD content decoder plus a semantic linter that validates beyond CRC.
 
-Status: decodes the JESD400-5 base content of a DDR5 SPD · identity and base configuration, base configuration CRC, base JEDEC timings, the unbuffered (UDIMM) module-specific block, and the manufacturing block · plus the vendor overclocking profiles (Intel XMP 3.0 and AMD EXPO), each anchored by its own section CRC · as a library and a `spdr` CLI. The semantic linter beyond CRC is the remaining later phase.
+Status: decodes the JESD400-5 base content of a DDR5 SPD · identity and base configuration, base configuration CRC, base JEDEC timings, the unbuffered (UDIMM) module-specific block, and the manufacturing block · plus the vendor overclocking profiles (Intel XMP 3.0 and AMD EXPO), each anchored by its own section CRC · and a semantic linter that validates beyond the CRC (capacity, timing relationships, speed bins, reserved bits, and cross-field consistency). Both the decoder and the linter are exposed as a library and as the `spdr` CLI (`spdr decode`, `spdr lint`). Scope is unbuffered-complete (UDIMM); SODIMM, RDIMM, and LRDIMM module-specific decoding is deferred. The remaining work is the v0.1.0 release polish.
 
 ## Usage
 
@@ -57,7 +57,46 @@ Example human output (abridged):
   ...
 ```
 
-The base timings are the SPD JEDEC fallback the module guarantees; the rated DDR5 speed (DDR5-6000 here) lives in the vendor profiles, decoded in the XMP 3.0 / EXPO section. Each profile section carries its own CRC, recomputed over a pinned range and compared to the stored value: the match is what anchors the region, so an unconfirmed region is never presented as authoritative. For this fixture both XMP and EXPO decode the same rated DDR5-6000 38-38-38-78 at 1.25 V, cross-checking it two independent ways. The base CRC line is a reported status (computed, stored, match), not a pass/fail verdict; the semantic linter beyond CRC is a later phase. `--json` emits the same sections as a single JSON object, with any failed section carrying an `error` indicator so the document stays valid.
+The base timings are the SPD JEDEC fallback the module guarantees; the rated DDR5 speed (DDR5-6000 here) lives in the vendor profiles, decoded in the XMP 3.0 / EXPO section. Each profile section carries its own CRC, recomputed over a pinned range and compared to the stored value: the match is what anchors the region, so an unconfirmed region is never presented as authoritative. For this fixture both XMP and EXPO decode the same rated DDR5-6000 38-38-38-78 at 1.25 V, cross-checking it two independent ways. The base CRC line is a reported status (computed, stored, match), not a pass/fail verdict; the semantic checks beyond the CRC are the job of `spdr lint` (below). `--json` emits the same sections as a single JSON object, with any failed section carrying an `error` indicator so the document stays valid.
+
+## Linting
+
+The linter validates beyond the CRC: the CRC only proves the bytes survived transit, while the linter reports values that are internally inconsistent even in a CRC-valid SPD. It checks capacity math, JEDEC timing relationships, speed-bin recognition, reference-declared reserved bits, and cross-field consistency.
+
+```
+spdr lint <file>          # human-readable findings (default)
+spdr lint <file> --json   # JSON array of findings (empty array when clean)
+```
+
+Each finding has a severity (`error`, `warning`, or `info`), a stable kebab-case code, and a message. Exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Lint ran with no `warning` or `error` findings (clean, or only `info` advisories). |
+| 1 | Lint ran and found at least one `warning` or `error`. |
+| 2 | Could not run: the file was unreadable, or the arguments were invalid. |
+
+`info` is advisory (a non-standard but legitimate data rate, for example) and does not fail the exit code; it is still printed. When the base configuration does not decode, only the structure-independent checks run, and the human output notes that coverage was limited so a clean result on an unparseable file is not mistaken for a full bill of health. A severity-threshold flag is deferred past v0.1.0.
+
+A clean module prints:
+
+```
+[Lint]
+  No findings. The SPD is internally consistent under the current rule set.
+```
+
+and a module with findings lists them, worst severity first:
+
+```
+[Lint]
+  2 findings: 1 error, 1 warning.
+  error · trc-identity-mismatch
+    tRC 48641 ps does not equal tRAS + tRP (32000 + 16640 = 48640 ps); the row-cycle identity tRC = tRAS + tRP is violated
+  warning · reserved-bytes-nonzero
+    reserved byte at offset 128 is 0xff, but a reference-declared-reserved region must be zero
+```
+
+The reference fixture lints clean (exit 0). The `--json` form emits the same findings as an array, each with `severity`, `code`, `message`, and structured `fields`.
 
 ## Robustness
 

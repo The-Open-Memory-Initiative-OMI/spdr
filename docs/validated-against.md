@@ -111,6 +111,10 @@ Both remain visible in the decode output as `module_attributes_raw = 0x81` (Phas
 
 This completes the linter's four rule categories (capacity, timing/speed-bin, reserved-bit, cross-field consistency) with the fixture-lints-clean invariant held at zero throughout.
 
+### Linter CLI (Phase 11)
+
+The fixture also lints clean through the CLI: `spdr lint` over it produces no findings and exits 0 (the `--json` form is the empty array `[]`). This is the same zero-findings baseline as the core `fixture_lints_clean` test, now exercised through the user-facing surface and its exit-code contract (0 clean or info-only, 1 a warning or error finding, 2 operational). No new correctness claim: Phase 11 is surface work over the unchanged lint core.
+
 ### Reference markers
 
 All carried markers are now closed: the main configuration CRC in Phase 2, the module manufacturer ID and manufacturing date in Phase 5, and the rated speed and the XMP / EXPO section CRCs in Phase 9a above. The remaining unimplemented surface is not a reference marker but deferred decode work, gated on real fixtures: the SODIMM / RDIMM / LRDIMM module-specific blocks, and a semantic-linter pass over the now-decoded XMP/EXPO profiles (Phase 9b).

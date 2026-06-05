@@ -10,6 +10,13 @@
 //! anchored by its section CRC. The base CRC is presented as a reported status,
 //! not a verdict. A section that fails to decode is shown with its error rather
 //! than fabricated output.
+//!
+//! Alongside `decode`, the `lint` subcommand runs the semantic linter (the
+//! validation-beyond-CRC pillar) and renders its findings, with its own
+//! exit-code contract: `0` when clean or only `Info` advisories, `1` when a
+//! `Warning` or `Error` finding is present, `2` when the file could not be read.
+//! Its renderers ([`render_lint_human`], [`render_lint_json`]) are pure like the
+//! decode renderers, so they are golden-tested without spawning the process.
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -17,10 +24,10 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use serde_json::Value;
 use spdr::{
-    CasLatencies, CrcStatus, DecodeError, Expo, ExpoProfile, IdentityAndBase, Manufacturing,
-    ModuleSpecific, Picoseconds, RatedTimings, Timings, VendorProfiles, Xmp, XmpProfile,
-    decode_identity_and_base, decode_manufacturing, decode_module_specific, decode_timings,
-    decode_vendor_profiles, verify_base_crc,
+    CasLatencies, CrcStatus, DecodeError, Expo, ExpoProfile, Finding, IdentityAndBase,
+    Manufacturing, ModuleSpecific, Picoseconds, RatedTimings, Severity, Timings, VendorProfiles,
+    Xmp, XmpProfile, decode_identity_and_base, decode_manufacturing, decode_module_specific,
+    decode_timings, decode_vendor_profiles, lint, verify_base_crc,
 };
 
 /// The `spdr` command-line interface.
@@ -31,21 +38,31 @@ pub struct Cli {
     pub command: Commands,
 }
 
-/// The `spdr` subcommands.
-///
-/// `Decode` is the only command today. `Lint` is reserved for Phase 11; this
-/// enum is the seam, so adding it is a one-variant change. It is intentionally
-/// not added or stubbed here, and because it is a separate subcommand it will
-/// define its own exit codes without colliding with `decode`'s.
+/// The `spdr` subcommands. `decode` prints the typed decode; `lint` runs the
+/// semantic linter and reports its findings. Each subcommand defines its own
+/// exit-code contract, so the two do not collide.
 #[derive(Subcommand)]
 pub enum Commands {
     /// Decode an SPD image and print it as human-readable text or JSON.
     Decode(DecodeArgs),
+    /// Lint an SPD image for internal inconsistencies and print the findings.
+    Lint(LintArgs),
 }
 
 /// Arguments to `spdr decode`.
 #[derive(Args)]
 pub struct DecodeArgs {
+    /// Path to a raw 1024-byte SPD image (a dump file or a Linux sysfs `eeprom`).
+    pub file: PathBuf,
+    /// Emit JSON instead of human-readable text.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Arguments to `spdr lint`. Mirrors [`DecodeArgs`]: the same file input and the
+/// same `--json` switch.
+#[derive(Args)]
+pub struct LintArgs {
     /// Path to a raw 1024-byte SPD image (a dump file or a Linux sysfs `eeprom`).
     pub file: PathBuf,
     /// Emit JSON instead of human-readable text.
@@ -74,7 +91,7 @@ pub struct DecodeResults<'a> {
 impl DecodeResults<'_> {
     /// Whether every section decoded. Drives exit code 0 versus 1. A CRC mismatch
     /// is itself a successful decode (`Ok`) and does not make this `false`;
-    /// integrity is the linter's job in Phase 11.
+    /// integrity and consistency are the linter's job (the `lint` subcommand).
     #[must_use]
     pub fn all_decoded(&self) -> bool {
         self.identity.is_ok()
@@ -108,6 +125,7 @@ pub fn run() -> i32 {
     let cli = Cli::parse();
     match cli.command {
         Commands::Decode(args) => run_decode(&args),
+        Commands::Lint(args) => run_lint(&args),
     }
 }
 
@@ -142,6 +160,215 @@ fn run_decode(args: &DecodeArgs) -> i32 {
     println!("{rendered}");
 
     if results.all_decoded() { 0 } else { 1 }
+}
+
+// --- Lint surface ----------------------------------------------------------
+
+/// The collected lint findings for an image, plus whether the base configuration
+/// decoded. Mirrors [`DecodeResults`] for the lint path: produced once by
+/// [`lint_report`], rendered by the pure render functions, and used to compute the
+/// exit code.
+pub struct LintReport {
+    /// The findings, ordered deterministically (errors first, then by code).
+    pub findings: Vec<Finding>,
+    /// Whether the base configuration block decoded. When false, only the
+    /// structure-independent checks (the raw reserved-bit rule) ran, so a
+    /// no-findings result is not a full clean bill; the human output says so.
+    pub base_decode_ok: bool,
+}
+
+/// Run the core linter over `bytes`, collecting and ordering the findings. Pure
+/// and panic-free (the core lint never panics). Findings are ordered by severity
+/// (errors first) then by code, so the renders are deterministic.
+#[must_use]
+pub fn lint_report(bytes: &[u8]) -> LintReport {
+    let mut findings = Vec::new();
+    lint(bytes, &mut |finding| findings.push(finding));
+    findings.sort_by(|a, b| {
+        severity_rank(a.severity())
+            .cmp(&severity_rank(b.severity()))
+            .then_with(|| a.code().cmp(b.code()))
+    });
+    LintReport {
+        base_decode_ok: decode_identity_and_base(bytes).is_ok(),
+        findings,
+    }
+}
+
+/// The lint exit code computed from the findings: `1` if any `Error` or `Warning`
+/// is present, `0` if there are none or only `Info` advisories. The operational
+/// `2` (unreadable file or bad arguments) is handled in [`run_lint`] and by clap,
+/// never here.
+#[must_use]
+pub fn lint_exit_code(findings: &[Finding]) -> i32 {
+    let actionable = findings
+        .iter()
+        .any(|finding| matches!(finding.severity(), Severity::Error | Severity::Warning));
+    i32::from(actionable)
+}
+
+/// The `lint` flow and its exit-code contract:
+/// - `0`: lint ran, no `Warning` or `Error` finding (clean, or only `Info`).
+/// - `1`: lint ran, at least one `Warning` or `Error` finding.
+/// - `2`: could not run; the file was unreadable. clap maps invalid arguments to
+///   the same code.
+fn run_lint(args: &LintArgs) -> i32 {
+    let bytes = match std::fs::read(&args.file) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            eprintln!("spdr: cannot read {}: {error}", args.file.display());
+            return 2;
+        }
+    };
+
+    let report = lint_report(&bytes);
+
+    let rendered = if args.json {
+        match render_lint_json(&report) {
+            Ok(json) => json,
+            Err(error) => {
+                eprintln!("spdr: failed to render JSON: {error}");
+                return 2;
+            }
+        }
+    } else {
+        render_lint_human(&report)
+    };
+    println!("{rendered}");
+
+    lint_exit_code(&report.findings)
+}
+
+/// The severity sort rank: errors first, then warnings, then info.
+fn severity_rank(severity: Severity) -> u8 {
+    match severity {
+        Severity::Error => 0,
+        Severity::Warning => 1,
+        Severity::Info => 2,
+    }
+}
+
+/// The lowercase severity label used in both lint renders.
+fn severity_label(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Error => "error",
+        Severity::Warning => "warning",
+        Severity::Info => "info",
+    }
+}
+
+/// Render the lint report as readable text: an optional limited-coverage note, a
+/// summary line, then one block per finding (severity and code, then the
+/// message). Pure and allocation-bounded; never panics.
+#[must_use]
+pub fn render_lint_human(report: &LintReport) -> String {
+    let mut out = String::new();
+    out.push_str("[Lint]\n");
+
+    if !report.base_decode_ok {
+        out.push_str(
+            "  Note: the base configuration did not decode, so only structure-independent checks ran; a clean result here is not a full bill of health.\n",
+        );
+    }
+
+    if report.findings.is_empty() {
+        out.push_str(
+            "  No findings. The SPD is internally consistent under the current rule set.\n",
+        );
+        return out;
+    }
+
+    let _ = writeln!(out, "  {}", lint_summary(&report.findings));
+    for finding in &report.findings {
+        let _ = writeln!(
+            out,
+            "  {} · {}",
+            severity_label(finding.severity()),
+            finding.code()
+        );
+        let _ = writeln!(out, "    {finding}");
+    }
+    out
+}
+
+/// Build the summary line, for example `"2 findings: 1 error, 1 warning."`.
+fn lint_summary(findings: &[Finding]) -> String {
+    let (errors, warnings, infos) = severity_counts(findings);
+    let total = findings.len();
+    let noun = if total == 1 { "finding" } else { "findings" };
+
+    let mut parts = Vec::new();
+    if errors > 0 {
+        parts.push(count_phrase(errors, "error"));
+    }
+    if warnings > 0 {
+        parts.push(count_phrase(warnings, "warning"));
+    }
+    if infos > 0 {
+        parts.push(count_phrase(infos, "info"));
+    }
+    format!("{total} {noun}: {}.", parts.join(", "))
+}
+
+/// `(errors, warnings, infos)` counts over the findings.
+fn severity_counts(findings: &[Finding]) -> (usize, usize, usize) {
+    let mut errors = 0;
+    let mut warnings = 0;
+    let mut infos = 0;
+    for finding in findings {
+        match finding.severity() {
+            Severity::Error => errors += 1,
+            Severity::Warning => warnings += 1,
+            Severity::Info => infos += 1,
+        }
+    }
+    (errors, warnings, infos)
+}
+
+/// `"1 error"` / `"2 errors"`; "info" is left invariant (it reads as a mass noun).
+fn count_phrase(n: usize, label: &str) -> String {
+    if n == 1 || label == "info" {
+        format!("{n} {label}")
+    } else {
+        format!("{n} {label}s")
+    }
+}
+
+/// Render the lint report as a JSON array of findings (an empty array when there
+/// are none). Each finding carries its lowercase `severity`, its stable `code`, a
+/// human `message`, and its structured `fields` (the core `Finding`'s serde
+/// representation, unwrapped to just the variant's fields, since `code` already
+/// names the rule).
+///
+/// # Errors
+/// Returns a [`serde_json::Error`] only if serializing a finding fails, which the
+/// finding types do not do in practice.
+pub fn render_lint_json(report: &LintReport) -> Result<String, serde_json::Error> {
+    let findings = report
+        .findings
+        .iter()
+        .map(finding_to_json)
+        .collect::<Result<Vec<_>, _>>()?;
+    serde_json::to_string_pretty(&Value::Array(findings))
+}
+
+/// Build one finding's JSON object.
+fn finding_to_json(finding: &Finding) -> Result<Value, serde_json::Error> {
+    // The core derives an externally-tagged enum, `{"Variant": {fields}}`; unwrap
+    // it to just the fields, since the stable `code` already identifies the rule.
+    let fields = match serde_json::to_value(finding)? {
+        Value::Object(map) if map.len() == 1 => map
+            .into_iter()
+            .next()
+            .map_or(Value::Null, |(_, value)| value),
+        other => other,
+    };
+    Ok(serde_json::json!({
+        "severity": severity_label(finding.severity()),
+        "code": finding.code(),
+        "message": finding.to_string(),
+        "fields": fields,
+    }))
 }
 
 // --- Human rendering -------------------------------------------------------
