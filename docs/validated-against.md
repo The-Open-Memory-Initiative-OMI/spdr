@@ -95,6 +95,22 @@ Under the Phase 9b rule set (timing-relationship, clock-consistency, and speed-b
 
 This extends the `fixture_lints_clean` invariant to the new rules: every rule emits only on a genuine violation, and no rule flags a vendor profile for being tighter or faster than a JEDEC bin (the recognized-rate check is Info-only, and no rule compares a profile to JEDEC limits). The full JEDEC sub-grade-table conformance and the tFAW >= 4 x tRRD_S ordering (tRRD_S is not decoded) are deferred, recorded in `docs/numerical-claims.md`. The relationships, the standard-rate list, and their sources are pinned in `docs/numerical-claims.md`.
 
+### Linter, full rule set (Phase 10)
+
+Under the full rule set (Phase 8 capacity, Phase 9b timing and speed-bin, and the Phase 10 reserved-bit and consistency rules), the fixture still produces **zero lint findings**, with every applicable rule running.
+
+- **Reserved-bit rule:** the fixture has zero in every region the rule checks, pinned to edlf `ddr5spd_structs.h`'s named `reserved_*` members and confirmed zero on the fixture: bytes 15, 29, 103-127, 128-191, 214-229, 236-239, and 448-509. Two reference-declared-reserved regions are deliberately excluded, never flagged: `reserved_240_447` (the module-type-specific parameter region, which a valid RDIMM/LRDIMM populates) and `reserved_555_639` (non-zero in the fixture itself at bytes 576-581, so vendor-usable). The rule checks only regions reserved for every module type and zero on the valid module.
+- **Consistency rule:** the fixture's geometry is coherent, a monolithic package carrying exactly one die, so the package/die-count rule emits nothing.
+
+**Deliberately not flagged, with the reasoning on the record.** Two bits the valid fixture sets are not lint findings, because a valid module setting them is positive evidence they are not defects:
+
+- **Byte 233 bit 7** (byte 233 = `0x81`): edlf labels byte 233 a defined `dimmAttributes` field, not a reserved region, and the paywalled spec does not let us confirm bit 7 is reserved. A valid module setting it is evidence it is defined-but-undocumented, not a reserved-must-be-zero violation. It is not in the reserved map, locked in by the `byte_233_bit_7_is_not_a_reserved_finding` test.
+- **The rank-1 address-mirror bit** (byte 233 bit 0): a single-rank module has no second rank to mirror, so the set bit is a benign don't-care, not an inconsistency. No rule inspects it.
+
+Both remain visible in the decode output as `module_attributes_raw = 0x81` (Phase 4), preserved-raw rather than guessed; this phase simply does not elevate them to findings. The reserved map, the coherence relationship, and their sources are recorded in `docs/numerical-claims.md`.
+
+This completes the linter's four rule categories (capacity, timing/speed-bin, reserved-bit, cross-field consistency) with the fixture-lints-clean invariant held at zero throughout.
+
 ### Reference markers
 
 All carried markers are now closed: the main configuration CRC in Phase 2, the module manufacturer ID and manufacturing date in Phase 5, and the rated speed and the XMP / EXPO section CRCs in Phase 9a above. The remaining unimplemented surface is not a reference marker but deferred decode work, gated on real fixtures: the SODIMM / RDIMM / LRDIMM module-specific blocks, and a semantic-linter pass over the now-decoded XMP/EXPO profiles (Phase 9b).

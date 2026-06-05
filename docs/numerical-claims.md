@@ -163,3 +163,38 @@ The rate list backs an `Info`-level observation only (a vendor profile may legit
 ### Deferred (tracked follow-on)
 
 Full JEDEC sub-grade-table conformance (matching a bin's specific tAA/tRCD/tRP limits) is deferred: it needs the per-bin JEDEC timing tables pinned and carries the base-versus-vendor nuance that an overclock profile is expected to beat JEDEC limits. The tFAW >= 4 x tRRD_S ordering is deferred because tRRD_S is not in the Phase 3 decoded set (only tRRD_L is), so the rule has no input.
+
+## Reserved-bit and consistency lint rules (Phase 10)
+
+The last two rule families. The reserved-bit rule checks that regions open references explicitly declare reserved are zero; the consistency rule checks the package/die-count coherence. Both hold the fixture-lints-clean invariant at zero.
+
+### Reserved regions checked (the pinned map)
+
+Pinned to edlf `ddr5spd_structs.h`'s own named `reserved_*` members, intersected with the regions the valid fixture confirms are all-zero. Each is verified zero in the fixture, so the rule emits nothing on it; a crafted non-zero byte in any of them fires a `Warning`.
+
+| Region (bytes) | edlf member | Fixture |
+| --- | --- | --- |
+| 15 | `reserved_15` | `0x00` |
+| 29 | `reserved_29` | `0x00` |
+| 103-127 | `reserved_103_127` | all zero |
+| 128-191 | `reserved_128_191` | all zero |
+| 214-229 | `reserved_214_229` | all zero |
+| 236-239 | `reserved_236_239` | all zero |
+| 448-509 | `reserved_448_509` | all zero |
+
+Two reference-declared-reserved regions are deliberately excluded: `reserved_240_447` (the module-type-specific parameter region, which a valid RDIMM/LRDIMM populates, so it is not unconditionally reserved) and `reserved_555_639` (non-zero in the fixture itself at bytes 576-581, so evidently vendor-usable). The exclusion principle is one line: never check a region a valid module legitimately uses. Source: the reserved declarations are edlf `ddr5spd_structs.h`; the zero-confirmation is the fixture; facts about which bytes are reserved are not copyrightable.
+
+### Deliberately not flagged
+
+| Bit | Fixture | Reason |
+| --- | --- | --- |
+| Byte 233 bit 7 | set (byte 233 = `0x81`) | edlf labels byte 233 a defined `dimmAttributes` field, not a reserved region; a valid module setting it is evidence it is defined-but-undocumented, not a reserved-must-be-zero violation. Not in the reserved map. |
+| Byte 233 bit 0 (rank-1 mirror) | set | A single-rank module has no second rank to mirror; a benign don't-care, not an inconsistency. No rule inspects it. |
+
+### Coherence relationship verified on the fixture
+
+| Relationship | Severity if violated | Fixture | Holds |
+| --- | --- | --- | --- |
+| monolithic package carries exactly one die; DDP/3DS carries more than one | Error | monolithic, 1 die | yes |
+
+Pinned to the JEDEC byte-4 package-type encoding Phase 1 decodes (and edlf's `sdram1Density` package bits). The current decode derives `package_type` and `die_count` from the same byte-4 bits, so the relationship holds by construction and the rule is a defense-in-depth invariant guard; it is exercised by a directly-constructed incoherent geometry in the unit tests.

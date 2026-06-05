@@ -21,10 +21,16 @@
 //! and standard where they should be. Each rule runs only where its inputs were
 //! decoded, so a rule needing a field a vendor profile does not carry simply does
 //! not run on that profile; no rule treats an overclock profile as a defect for
-//! being tighter or faster than a JEDEC bin. Every later rule plugs into the same
-//! [`lint`] dispatch and the same [`Finding`] enum.
+//! being tighter or faster than a JEDEC bin. Phase 10 adds the last two families,
+//! reserved-bit and cross-field consistency, under honest conservatism: the
+//! reserved-bit rule keys only off regions open references explicitly declare
+//! reserved and the valid fixture confirms are zero (a region a valid module uses
+//! is excluded, never flagged), and the consistency rules flag only a definitional
+//! incoherence. Every later rule plugs into the same [`lint`] dispatch and the
+//! same [`Finding`] enum.
 
-use crate::identity::{IdentityAndBase, decode_identity_and_base};
+use crate::identity::{IdentityAndBase, PackageType, decode_identity_and_base};
+use crate::reader::SpdImage;
 use crate::timing::{CasLatencies, Picoseconds, Timings, decode_timings};
 use crate::vendor::{Expo, RatedTimings, VendorProfiles, Xmp, decode_vendor_profiles};
 use core::fmt;
@@ -187,6 +193,29 @@ pub enum Finding {
         /// The data rate, in MT/s.
         data_rate_mt_s: u32,
     },
+
+    /// A byte in a region open references explicitly declare reserved is non-zero,
+    /// where the valid fixture confirms it should be zero. A `Warning`, not an
+    /// `Error`: a set reserved bit is suspect but a later spec revision may define
+    /// it. The map excludes regions a valid module uses (a region the fixture
+    /// itself, or another module type, populates is not flagged).
+    ReservedBytesNonZero {
+        /// The byte offset of the first non-zero reserved byte.
+        offset: usize,
+        /// The non-zero value found there.
+        value: u8,
+    },
+
+    /// The SDRAM package type and the die count are incoherent: a monolithic
+    /// package must carry exactly one die, and a dual-die (DDP) or 3DS package
+    /// more than one. An `Error`: it is a definitional incoherence in the
+    /// geometry.
+    PackageDieCountMismatch {
+        /// The decoded package type.
+        package_type: PackageType,
+        /// The decoded die count, inconsistent with `package_type`.
+        die_count: u8,
+    },
 }
 
 impl Finding {
@@ -197,10 +226,11 @@ impl Finding {
             Finding::NonIntegerDeviceCount { .. }
             | Finding::TrcIdentityMismatch { .. }
             | Finding::TimingOrderingViolation { .. }
-            | Finding::CasLatencyNotSupported { .. } => Severity::Error,
-            Finding::NonIntegerCasLatency { .. } | Finding::NonIntegerClockTiming { .. } => {
-                Severity::Warning
-            }
+            | Finding::CasLatencyNotSupported { .. }
+            | Finding::PackageDieCountMismatch { .. } => Severity::Error,
+            Finding::NonIntegerCasLatency { .. }
+            | Finding::NonIntegerClockTiming { .. }
+            | Finding::ReservedBytesNonZero { .. } => Severity::Warning,
             Finding::NonStandardDataRate { .. } => Severity::Info,
         }
     }
@@ -217,6 +247,8 @@ impl Finding {
             Finding::CasLatencyNotSupported { .. } => "cas-latency-not-supported",
             Finding::NonIntegerClockTiming { .. } => "non-integer-clock-timing",
             Finding::NonStandardDataRate { .. } => "non-standard-data-rate",
+            Finding::ReservedBytesNonZero { .. } => "reserved-bytes-nonzero",
+            Finding::PackageDieCountMismatch { .. } => "package-die-count-mismatch",
         }
     }
 }
@@ -272,6 +304,17 @@ impl fmt::Display for Finding {
                 f,
                 "data rate {data_rate_mt_s} MT/s is not a recognized JEDEC-standard DDR5 rate"
             ),
+            Finding::ReservedBytesNonZero { offset, value } => write!(
+                f,
+                "reserved byte at offset {offset} is {value:#04x}, but a reference-declared-reserved region must be zero"
+            ),
+            Finding::PackageDieCountMismatch {
+                package_type,
+                die_count,
+            } => write!(
+                f,
+                "package type '{package_type}' is incoherent with a die count of {die_count}"
+            ),
         }
     }
 }
@@ -286,12 +329,16 @@ impl fmt::Display for Finding {
 ///
 /// Phase 8 decodes identity and base and runs the capacity-consistency rule.
 /// Phase 9b additionally decodes the base timings and the vendor profiles and
-/// runs the timing-relationship, clock-consistency, and speed-bin rules. Each
-/// section is decoded independently and a rule runs only where its inputs are
-/// present, so a short or partial image still lints what it can without panicking.
+/// runs the timing-relationship, clock-consistency, and speed-bin rules. Phase 10
+/// adds the reserved-bit rule (reading raw bytes, independent of any decode) and
+/// the package/die-count coherence rule. Each section is decoded independently and
+/// a rule runs only where its inputs are present, so a short or partial image
+/// still lints what it can without panicking.
 pub fn lint<F: FnMut(Finding)>(bytes: &[u8], sink: &mut F) {
+    check_reserved_regions(bytes, sink);
     if let Ok(identity) = decode_identity_and_base(bytes) {
         check_capacity(&identity, sink);
+        check_package_coherence(&identity, sink);
     }
     if let Ok(timings) = decode_timings(bytes) {
         check_base_timings(&timings, sink);
@@ -480,6 +527,85 @@ fn check_clock_multiple(
 fn check_standard_rate(data_rate_mt_s: u32, sink: &mut dyn FnMut(Finding)) {
     if data_rate_mt_s != 0 && !STANDARD_DDR5_RATES.contains(&data_rate_mt_s) {
         sink(Finding::NonStandardDataRate { data_rate_mt_s });
+    }
+}
+
+/// The reserved byte regions checked by [`check_reserved_regions`], as
+/// `(offset, length)` pairs. Each is a region edlf `ddr5spd_structs.h` declares
+/// reserved with a named `reserved_*` member AND the valid fixture confirms is
+/// all-zero, so it is genuinely must-be-zero rather than vendor-usable:
+///
+/// - `reserved_15`, `reserved_29`: isolated reserved bytes in the base block.
+/// - `reserved_103_127`: tail of the base timing region.
+/// - `reserved_128_191`: the reserved block between the base and common regions.
+/// - `reserved_214_229`, `reserved_236_239`: reserved spans in the common module
+///   parameters region.
+/// - `reserved_448_509`: the reserved block before the base CRC.
+///
+/// Two reference-declared-reserved regions are deliberately excluded: edlf's
+/// `reserved_240_447` is the module-type-specific parameter region (a valid RDIMM
+/// or LRDIMM populates it with register and data-buffer parameters), so it is not
+/// unconditionally reserved and checking it would flag a valid module; and
+/// `reserved_555_639` is non-zero in the fixture itself (bytes 576-581), evidence
+/// it is vendor-usable rather than must-be-zero. See the Phase 10 implementation
+/// doc for the full map and its provenance.
+const RESERVED_REGIONS: [(usize, usize); 7] = [
+    (15, 1),
+    (29, 1),
+    (103, 25),
+    (128, 64),
+    (214, 16),
+    (236, 4),
+    (448, 62),
+];
+
+/// Reserved-bit rule · every byte in a reference-declared-reserved-and-zero region
+/// must be zero. Reads the raw bytes through [`SpdImage`], so a region the image
+/// is too short to contain is skipped (the slice returns an error), never read out
+/// of bounds. Emits one `Warning` per non-zero region, locating the first offending
+/// byte. The map (see [`RESERVED_REGIONS`]) excludes regions a valid module uses,
+/// so this never flags a region that is legitimately populated, byte 233 (the
+/// defined `dimmAttributes` field, including its set bit 7 on the fixture) among
+/// them, since byte 233 is not a reference-declared-reserved region and is not in
+/// the map.
+fn check_reserved_regions(bytes: &[u8], sink: &mut dyn FnMut(Finding)) {
+    let spd = SpdImage::new(bytes);
+    for &(offset, len) in &RESERVED_REGIONS {
+        // A region the image is too short to contain is skipped, never read out
+        // of bounds (the slice returns an error). Otherwise scan for the first
+        // non-zero byte by iteration rather than indexing, and report it.
+        if let Ok(region) = spd.slice(offset, len) {
+            for (i, &byte) in region.iter().enumerate() {
+                if byte != 0 {
+                    sink(Finding::ReservedBytesNonZero {
+                        offset: offset + i,
+                        value: byte,
+                    });
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Consistency rule · the SDRAM package type and the die count must cohere. A
+/// monolithic package carries exactly one die; a dual-die (DDP) or 3DS package
+/// carries more than one. Pinned to the JEDEC byte-4 package-type encoding Phase 1
+/// decodes (the edlf `ddr5spd_structs.h` `sdram1Density` package bits and the
+/// JEDEC die-count table). The current decode derives both from the same byte-4
+/// bits, so a real image is always coherent and this rule is a defense-in-depth
+/// invariant guard; it fires only on a directly-constructed incoherent geometry.
+/// The fixture (monolithic, one die) satisfies it.
+fn check_package_coherence(identity: &IdentityAndBase, sink: &mut dyn FnMut(Finding)) {
+    let coherent = match identity.package_type {
+        PackageType::Monolithic => identity.die_count == 1,
+        PackageType::DualDie | PackageType::ThreeDs => identity.die_count > 1,
+    };
+    if !coherent {
+        sink(Finding::PackageDieCountMismatch {
+            package_type: identity.package_type,
+            die_count: identity.die_count,
+        });
     }
 }
 
@@ -760,5 +886,83 @@ mod tests {
             );
         });
         assert_eq!(mult, 0);
+    }
+
+    // --- Phase 10 reserved-bit and consistency rules -----------------------
+
+    #[test]
+    fn garbage_in_reserved_region_is_warning() {
+        // A 512-byte image, all zero except one byte inside reserved_128_191.
+        let mut img = [0u8; 512];
+        img[128] = 0xFF;
+        let (count, last) = run(|sink| check_reserved_regions(&img, sink));
+        assert_eq!(count, 1);
+        let finding = last.unwrap();
+        assert_eq!(
+            finding,
+            Finding::ReservedBytesNonZero {
+                offset: 128,
+                value: 0xFF,
+            }
+        );
+        assert_eq!(finding.severity(), Severity::Warning);
+        assert_eq!(finding.code(), "reserved-bytes-nonzero");
+    }
+
+    #[test]
+    fn all_zero_reserved_regions_emit_nothing() {
+        // The fixture's reserved regions are all zero; an all-zero image is the
+        // same shape and must produce no reserved finding.
+        let img = [0u8; 512];
+        let (count, _) = run(|sink| check_reserved_regions(&img, sink));
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn byte_233_bit_7_is_not_a_reserved_finding() {
+        // Byte 233 is the defined dimmAttributes field, not a reference-declared
+        // reserved region, so its bit 7 (set on the real fixture) never enters the
+        // reserved-bit rule. An image with only byte 233 bit 7 set emits nothing.
+        let mut img = [0u8; 512];
+        img[233] = 0x80;
+        let (count, _) = run(|sink| check_reserved_regions(&img, sink));
+        assert_eq!(count, 0, "byte 233 bit 7 must not be flagged as reserved");
+    }
+
+    #[test]
+    fn reserved_rule_skips_regions_beyond_a_short_image() {
+        // A short image cannot contain the later reserved regions; they are
+        // skipped, not read out of bounds, and an all-zero short image is clean.
+        let img = [0u8; 130];
+        let (count, _) = run(|sink| check_reserved_regions(&img, sink));
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn monolithic_with_multiple_dies_is_coherence_error() {
+        // Decode a valid monolithic, single-die geometry, then make it incoherent.
+        let img = identity_image(0x20, 0x03); // x8 I/O, 64-bit bus, monolithic
+        let mut id = decode_identity_and_base(&img).expect("valid identity");
+        assert_eq!(id.package_type, PackageType::Monolithic);
+        assert_eq!(id.die_count, 1);
+
+        // The consistent case emits nothing.
+        let (clean, _) = run(|sink| check_package_coherence(&id, sink));
+        assert_eq!(clean, 0);
+
+        // A monolithic package carrying four dies is a definitional incoherence.
+        id.die_count = 4;
+        let (count, last) = run(|sink| check_package_coherence(&id, sink));
+        assert_eq!(count, 1);
+        let finding = last.unwrap();
+        assert_eq!(
+            finding,
+            Finding::PackageDieCountMismatch {
+                package_type: PackageType::Monolithic,
+                die_count: 4,
+            }
+        );
+        assert_eq!(finding.severity(), Severity::Error);
+        assert_eq!(finding.code(), "package-die-count-mismatch");
     }
 }
