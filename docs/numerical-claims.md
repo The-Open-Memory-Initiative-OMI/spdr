@@ -63,7 +63,7 @@ Decoded from the fixture (a UDIMM). Offsets are pinned against edlf `DDR5SPDEdit
 | Module max thickness, back | 1 mm | Byte 231 bits [7:4] = 0x0; `(nibble) + 1`. |
 | Reference raw card | card A, revision 0 | Byte 232 = 0x00; code 0 -> index 0 (alphabet `ABCDEFGHJKLMNPRTUVWY`), revision bits [6:5] = 0, no extension. |
 | Rank 1 address mapping | mirrored | Byte 233 bit 0 = 1; `byte & 0x01`. |
-| Module attributes raw | 0x81 | Byte 233 preserved whole; bit 0 interpreted above, bit 7 is a reserved-set bit left for the linter. |
+| Module attributes raw | 0x81 | Byte 233 preserved whole; bit 0 interpreted above. Byte 233 is the defined `dimmAttributes` field (edlf), so bit 7 is a set bit of undocumented meaning within a defined field, preserved raw and deliberately not flagged as a reserved-bit violation (settled in Phase 10), not a reserved-set bit awaiting the linter. |
 
 ## Manufacturing information block (Phase 5)
 

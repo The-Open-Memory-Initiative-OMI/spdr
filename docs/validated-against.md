@@ -31,7 +31,7 @@ The fixture is a UDIMM, so the module-type dispatch routes it to the unbuffered 
 - Module nominal height: 32 mm (byte 230 = 0x11; `(byte & 0x1f) + 15`). This is the top of the 31 < h <= 32 mm range, consistent with a 31.25 mm UDIMM.
 - Module maximum thickness: 2 mm front, 1 mm back (byte 231 = 0x01; each nibble + 1 mm).
 - Reference raw card: card A, revision 0 (byte 232 = 0x00; code 0 on the JEDEC alphabet `ABCDEFGHJKLMNPRTUVWY`, revision bits [6:5] = 0).
-- Rank 1 edge-connector-to-DRAM address mapping: mirrored (byte 233 bit 0 = 1). The full byte (0x81) is preserved raw; only bit 0 is interpreted, and the set reserved bit 7 is left for the linter, not guessed.
+- Rank 1 edge-connector-to-DRAM address mapping: mirrored (byte 233 bit 0 = 1). The full byte (0x81) is preserved raw; only bit 0 is interpreted. Byte 233 is the defined `dimmAttributes` field (per edlf), so its set bit 7 is a bit of undocumented meaning within a defined field, preserved raw and deliberately not treated as a reserved-bit violation (settled in Phase 10), not a reserved-set bit awaiting the linter.
 
 Offsets are pinned against edlf `DDR5SPDEditor` (`ddr5spd_structs.h`) and the UniC `SCA08GU04M1F1C-48B` datasheet block map (bytes 192-239 are common module parameters, Annex A.0); encodings against decode-dimms and JEDEC Standard 21-C Annex K. Correctness of these physical fields is confirmed at review against DDR5SPDEditor's physical-attribute readout and the part's mechanical detail, not by the snapshot alone.
 
@@ -115,6 +115,17 @@ This completes the linter's four rule categories (capacity, timing/speed-bin, re
 
 The fixture also lints clean through the CLI: `spdr lint` over it produces no findings and exits 0 (the `--json` form is the empty array `[]`). This is the same zero-findings baseline as the core `fixture_lints_clean` test, now exercised through the user-facing surface and its exit-code contract (0 clean or info-only, 1 a warning or error finding, 2 operational). No new correctness claim: Phase 11 is surface work over the unchanged lint core.
 
+### v0.1.0 release (Phase 12)
+
+The v0.1.0 release packages the decoder and the four-family linter for crates.io
+with no new decode, rule, fixture, or correctness claim. The validated set is
+unchanged and is exactly the one module above, the TEAMGROUP UD5-6000: unbuffered
+(UDIMM) content is complete, and SODIMM / RDIMM / LRDIMM module-specific decoding,
+full JEDEC bin-table conformance, and the tFAW >= 4 x tRRD_S ordering remain
+deferred and gated on real fixtures. The no-panic contract is property-tested; the
+cargo-fuzz harness is committed but not deep-run, so this is "property-tested," not
+"fuzzed." See `CHANGELOG.md` for the release summary.
+
 ### Reference markers
 
-All carried markers are now closed: the main configuration CRC in Phase 2, the module manufacturer ID and manufacturing date in Phase 5, and the rated speed and the XMP / EXPO section CRCs in Phase 9a above. The remaining unimplemented surface is not a reference marker but deferred decode work, gated on real fixtures: the SODIMM / RDIMM / LRDIMM module-specific blocks, and a semantic-linter pass over the now-decoded XMP/EXPO profiles (Phase 9b).
+All carried markers are now closed: the main configuration CRC in Phase 2, the module manufacturer ID and manufacturing date in Phase 5, and the rated speed and the XMP / EXPO section CRCs in Phase 9a above. The semantic-linter pass over the now-decoded XMP/EXPO profiles is also done (Phase 9b, above). The remaining unimplemented surface is not a reference marker but deferred decode work, gated on real fixtures: the SODIMM / RDIMM / LRDIMM module-specific blocks.

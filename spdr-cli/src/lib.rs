@@ -171,9 +171,10 @@ fn run_decode(args: &DecodeArgs) -> i32 {
 pub struct LintReport {
     /// The findings, ordered deterministically (errors first, then by code).
     pub findings: Vec<Finding>,
-    /// Whether the base configuration block decoded. When false, only the
-    /// structure-independent checks (the raw reserved-bit rule) ran, so a
-    /// no-findings result is not a full clean bill; the human output says so.
+    /// Whether the base configuration block decoded. When false, the checks that
+    /// depend on it (capacity and cross-field consistency) were skipped, while the
+    /// reserved-bit check still ran; a no-findings result is then not a full clean
+    /// bill, and the human output says so.
     pub base_decode_ok: bool,
 }
 
@@ -267,7 +268,7 @@ pub fn render_lint_human(report: &LintReport) -> String {
 
     if !report.base_decode_ok {
         out.push_str(
-            "  Note: the base configuration did not decode, so only structure-independent checks ran; a clean result here is not a full bill of health.\n",
+            "  Note: the base configuration did not decode, so the checks that depend on it (capacity and cross-field consistency) were skipped, while the reserved-bit check still ran; a clean result here is not a full bill of health.\n",
         );
     }
 

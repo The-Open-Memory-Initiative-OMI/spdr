@@ -2,7 +2,18 @@
 
 A read-only, complete JESD400-5 SPD content decoder plus a semantic linter that validates beyond CRC.
 
-Status: decodes the JESD400-5 base content of a DDR5 SPD · identity and base configuration, base configuration CRC, base JEDEC timings, the unbuffered (UDIMM) module-specific block, and the manufacturing block · plus the vendor overclocking profiles (Intel XMP 3.0 and AMD EXPO), each anchored by its own section CRC · and a semantic linter that validates beyond the CRC (capacity, timing relationships, speed bins, reserved bits, and cross-field consistency). Both the decoder and the linter are exposed as a library and as the `spdr` CLI (`spdr decode`, `spdr lint`). Scope is unbuffered-complete (UDIMM); SODIMM, RDIMM, and LRDIMM module-specific decoding is deferred. The remaining work is the v0.1.0 release polish.
+Status: decodes the JESD400-5 base content of a DDR5 SPD · identity and base configuration, base configuration CRC, base JEDEC timings, the unbuffered (UDIMM) module-specific block, and the manufacturing block · plus the vendor overclocking profiles (Intel XMP 3.0 and AMD EXPO), each anchored by its own section CRC · and a semantic linter that validates beyond the CRC (capacity, timing relationships, speed bins, reserved bits, and cross-field consistency). Both the decoder and the linter are exposed as a library and as the `spdr` CLI (`spdr decode`, `spdr lint`). Scope is unbuffered-complete (UDIMM); SODIMM, RDIMM, and LRDIMM module-specific decoding is deferred and gated on real fixtures, as are full JEDEC bin-table conformance and the tFAW >= 4 x tRRD_S ordering. The no-panic contract is property-tested (the cargo-fuzz harness is committed but not yet deep-run, so this is "property-tested," not "fuzzed"), and the decoder is confirmed correct against one real module so far, a TEAMGROUP T-Create Expert 6000 (UD5-6000); see `docs/validated-against.md`. This is the v0.1.0 release.
+
+## Install
+
+The library and the CLI are two crates:
+
+```
+cargo add spdr            # the library (no_std, serde-free by default)
+cargo install spdr-cli    # the CLI; the installed binary is named `spdr`
+```
+
+`cargo install spdr` does **not** work: `spdr` is the library crate and ships no binary. Install `spdr-cli` for the tool. The library stays `#![no_std]`, allocation-free, and `#![forbid(unsafe_code)]`; an optional `serde` feature (`cargo add spdr --features serde`) derives `Serialize` only, for JSON output, and is off by default.
 
 ## Usage
 
@@ -76,7 +87,7 @@ Each finding has a severity (`error`, `warning`, or `info`), a stable kebab-case
 | 1 | Lint ran and found at least one `warning` or `error`. |
 | 2 | Could not run: the file was unreadable, or the arguments were invalid. |
 
-`info` is advisory (a non-standard but legitimate data rate, for example) and does not fail the exit code; it is still printed. When the base configuration does not decode, only the structure-independent checks run, and the human output notes that coverage was limited so a clean result on an unparseable file is not mistaken for a full bill of health. A severity-threshold flag is deferred past v0.1.0.
+`info` is advisory (a non-standard but legitimate data rate, for example) and does not fail the exit code; it is still printed. When the base configuration does not decode, the checks that depend on it (capacity and cross-field consistency) are skipped while the reserved-bit check still runs, and the human output notes this so a clean result on an unparseable file is not mistaken for a full bill of health. A severity-threshold flag is deferred past v0.1.0.
 
 A clean module prints:
 

@@ -6,6 +6,13 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+description = "Zero-copy no_std DDR5 SPD (JESD400-5) content decoder and beyond-CRC semantic linter. Unbuffered (UDIMM) complete; SODIMM, RDIMM, and LRDIMM deferred."
+keywords = ["ddr5", "spd", "jedec", "memory", "no-std"]
+categories = ["parser-implementations", "hardware-support", "no-std"]
+readme = "README.md"
+# The cargo-fuzz harness is a separate, unpublished sub-workspace (its own
+# `[workspace]` root); exclude it so it is not packaged into the published crate.
+exclude = ["fuzz"]
 
 [features]
 # Opt-in `Serialize` derives on the public decoded types, for the CLI's `--json`

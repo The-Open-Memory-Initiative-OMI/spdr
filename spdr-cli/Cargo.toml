@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+description = "Command-line DDR5 SPD (JESD400-5) decoder and beyond-CRC linter; the spdr binary. Unbuffered (UDIMM) complete; SODIMM, RDIMM, and LRDIMM deferred."
+keywords = ["ddr5", "spd", "jedec", "memory", "cli"]
+categories = ["command-line-utilities", "hardware-support"]
+readme = "README.md"
 
 # The crate is `spdr-cli`, but the user-facing binary is `spdr`.
 [[bin]]
@@ -15,7 +19,10 @@ path = "src/main.rs"
 [dependencies]
 # The CLI enables the core's `serde` feature for `--json`; the core stays
 # serde-free by default (guarded in CI by `cargo build -p spdr`).
-spdr = { path = "../spdr", features = ["serde"] }
+# Both `version` and `path`: `path` resolves the local crate during development,
+# and `version` is what a published `spdr-cli` depends on from the registry. A
+# path-only dependency cannot be published.
+spdr = { version = "0.1.0", path = "../spdr", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 

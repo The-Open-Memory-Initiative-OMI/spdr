@@ -249,7 +249,9 @@ fn lint_info_only_image_exits_zero_with_coverage_note() {
     let human = spdr_cli::render_lint_human(&report);
     assert!(human.contains("info · non-standard-data-rate"));
     assert!(
-        human.contains("only structure-independent checks ran"),
+        human.contains(
+            "the checks that depend on it (capacity and cross-field consistency) were skipped, while the reserved-bit check still ran"
+        ),
         "limited-coverage note must appear when the base decode failed"
     );
 }
