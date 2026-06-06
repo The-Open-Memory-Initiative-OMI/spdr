@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-labelledby="bannerTitle bannerDesc">
+  <title id="bannerTitle">spdr · DDR5 SPD decoder and semantic linter</title>
+  <desc id="bannerDesc">The wordmark spdr beside a spider drawn from copper PCB traces, its body a memory chip with a die outline and a pin-1 dot, eight legs routed as copper traces with via pads at the joints and feet, over a faint web that doubles as radial routing on a dark circuit board.</desc>
+
+  <defs>
+    <linearGradient id="board" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101b16"/>
+      <stop offset="0.55" stop-color="#0c130f"/>
+      <stop offset="1" stop-color="#090d0b"/>
+    </linearGradient>
+    <linearGradient id="copper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3d49b"/>
+      <stop offset="0.5" stop-color="#dca152"/>
+      <stop offset="1" stop-color="#b9772a"/>
+    </linearGradient>
+    <clipPath id="card">
+      <rect x="3" y="3" width="1194" height="294" rx="20"/>
+    </clipPath>
+    <pattern id="drillgrid" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="13" cy="13" r="1" fill="#d9a85a" fill-opacity="0.05"/>
+    </pattern>
+  </defs>
+
+  <!-- Board, baked dark so the banner is identical on GitHub light and dark themes -->
+  <rect x="3" y="3" width="1194" height="294" rx="20" fill="url(#board)"/>
+  <rect x="3" y="3" width="1194" height="294" rx="20" fill="url(#drillgrid)"/>
+  <rect x="3.75" y="3.75" width="1192.5" height="292.5" rx="19.25" fill="none" stroke="#7a5a2a" stroke-opacity="0.5" stroke-width="1.5"/>
+  <rect x="6" y="6" width="1188" height="288" rx="17" fill="none" stroke="#f3d49b" stroke-opacity="0.05" stroke-width="1"/>
+
+  <!-- Faint web: concentric rings plus eight radials aligned to the legs (radial routing into the chip) -->
+  <g clip-path="url(#card)" fill="none" stroke="#d9a85a">
+    <g stroke-opacity="0.07" stroke-width="1">
+      <circle cx="190" cy="150" r="74"/>
+      <circle cx="190" cy="150" r="116"/>
+      <circle cx="190" cy="150" r="158"/>
+      <circle cx="190" cy="150" r="200"/>
+    </g>
+    <g stroke-opacity="0.06" stroke-width="1">
+      <line x1="190" y1="150" x2="353" y2="95"/>
+      <line x1="190" y1="150" x2="361" y2="134"/>
+      <line x1="190" y1="150" x2="361" y2="166"/>
+      <line x1="190" y1="150" x2="353" y2="205"/>
+      <line x1="190" y1="150" x2="27" y2="95"/>
+      <line x1="190" y1="150" x2="19" y2="134"/>
+      <line x1="190" y1="150" x2="19" y2="166"/>
+      <line x1="190" y1="150" x2="27" y2="205"/>
+    </g>
+  </g>
+
+  <!-- Corner mounting holes (fab detail) -->
+  <g stroke="#d9a85a" stroke-opacity="0.16" stroke-width="1.4" fill="#090d0b">
+    <circle cx="34" cy="34" r="6"/>
+    <circle cx="1166" cy="34" r="6"/>
+    <circle cx="34" cy="266" r="6"/>
+    <circle cx="1166" cy="266" r="6"/>
+  </g>
+
+  <!-- Eight legs as routed copper traces: break-out, 45-degree to the knee, 45-degree to the foot -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#caa25e" stroke-opacity="0.13" stroke-width="10">
+      <path d="M219,128 L231,128 L267,92 L291,116"/>
+      <path d="M219,144 L233,144 L277,100 L315,138"/>
+      <path d="M219,156 L233,156 L277,200 L315,162"/>
+      <path d="M219,172 L231,172 L267,208 L291,184"/>
+      <path d="M161,128 L149,128 L113,92 L89,116"/>
+      <path d="M161,144 L147,144 L103,100 L65,138"/>
+      <path d="M161,156 L147,156 L103,200 L65,162"/>
+      <path d="M161,172 L149,172 L113,208 L89,184"/>
+    </g>
+    <g stroke="url(#copper)" stroke-width="5.5">
+      <path d="M219,128 L231,128 L267,92 L291,116"/>
+      <path d="M219,144 L233,144 L277,100 L315,138"/>
+      <path d="M219,156 L233,156 L277,200 L315,162"/>
+      <path d="M219,172 L231,172 L267,208 L291,184"/>
+      <path d="M161,128 L149,128 L113,92 L89,116"/>
+      <path d="M161,144 L147,144 L103,100 L65,138"/>
+      <path d="M161,156 L147,156 L103,200 L65,162"/>
+      <path d="M161,172 L149,172 L113,208 L89,184"/>
+    </g>
+  </g>
+
+  <!-- Via pads: knee joints, then feet, as annular rings (copper pad with a drilled center) -->
+  <g>
+    <g fill="url(#copper)">
+      <circle cx="267" cy="92" r="4.5"/>
+      <circle cx="277" cy="100" r="4.5"/>
+      <circle cx="277" cy="200" r="4.5"/>
+      <circle cx="267" cy="208" r="4.5"/>
+      <circle cx="113" cy="92" r="4.5"/>
+      <circle cx="103" cy="100" r="4.5"/>
+      <circle cx="103" cy="200" r="4.5"/>
+      <circle cx="113" cy="208" r="4.5"/>
+    </g>
+    <g fill="#0a100d">
+      <circle cx="267" cy="92" r="1.7"/>
+      <circle cx="277" cy="100" r="1.7"/>
+      <circle cx="277" cy="200" r="1.7"/>
+      <circle cx="267" cy="208" r="1.7"/>
+      <circle cx="113" cy="92" r="1.7"/>
+      <circle cx="103" cy="100" r="1.7"/>
+      <circle cx="103" cy="200" r="1.7"/>
+      <circle cx="113" cy="208" r="1.7"/>
+    </g>
+    <g fill="url(#copper)">
+      <circle cx="291" cy="116" r="5.6"/>
+      <circle cx="315" cy="138" r="5.6"/>
+      <circle cx="315" cy="162" r="5.6"/>
+      <circle cx="291" cy="184" r="5.6"/>
+      <circle cx="89" cy="116" r="5.6"/>
+      <circle cx="65" cy="138" r="5.6"/>
+      <circle cx="65" cy="162" r="5.6"/>
+      <circle cx="89" cy="184" r="5.6"/>
+    </g>
+    <g fill="#0a100d">
+      <circle cx="291" cy="116" r="2.2"/>
+      <circle cx="315" cy="138" r="2.2"/>
+      <circle cx="315" cy="162" r="2.2"/>
+      <circle cx="291" cy="184" r="2.2"/>
+      <circle cx="89" cy="116" r="2.2"/>
+      <circle cx="65" cy="138" r="2.2"/>
+      <circle cx="65" cy="162" r="2.2"/>
+      <circle cx="89" cy="184" r="2.2"/>
+    </g>
+  </g>
+
+  <!-- Body: a memory chip. Package over the leg roots, then the leg pads, die outline, notch, pin-1 dot -->
+  <rect x="161" y="114" width="58" height="72" rx="12" fill="#0a100d" stroke="url(#copper)" stroke-width="3"/>
+  <g fill="url(#copper)">
+    <circle cx="219" cy="128" r="3"/>
+    <circle cx="219" cy="144" r="3"/>
+    <circle cx="219" cy="156" r="3"/>
+    <circle cx="219" cy="172" r="3"/>
+    <circle cx="161" cy="128" r="3"/>
+    <circle cx="161" cy="144" r="3"/>
+    <circle cx="161" cy="156" r="3"/>
+    <circle cx="161" cy="172" r="3"/>
+  </g>
+  <rect x="170" y="125" width="40" height="50" rx="6" fill="none" stroke="url(#copper)" stroke-width="1.2" stroke-opacity="0.5"/>
+  <g stroke="#d9a85a" stroke-opacity="0.22" stroke-width="1">
+    <line x1="176" y1="150" x2="204" y2="150"/>
+    <line x1="190" y1="133" x2="190" y2="167"/>
+  </g>
+  <path d="M183,114 A7,7 0 0,0 197,114" fill="none" stroke="url(#copper)" stroke-width="2"/>
+  <circle cx="178" cy="133" r="3.4" fill="url(#copper)"/>
+
+  <!-- Faint divider with routing terminals -->
+  <line x1="362" y1="78" x2="362" y2="224" stroke="#d9a85a" stroke-opacity="0.18" stroke-width="1.5"/>
+  <g fill="url(#copper)" fill-opacity="0.5">
+    <circle cx="362" cy="78" r="2.4"/>
+    <circle cx="362" cy="224" r="2.4"/>
+  </g>
+
+  <!-- Wordmark block. Middle-dot separators are tinted copper to carry the accent across the divider -->
+  <g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace">
+    <text x="410" y="168" font-size="128" font-weight="800" letter-spacing="2" fill="#f4f7f4">spdr</text>
+    <text x="412" y="224" font-size="20" font-weight="600" letter-spacing="6" fill="#8aa79a">JESD400-5<tspan fill="#d9a85a"> · </tspan>DDR5<tspan fill="#d9a85a"> · </tspan>SPD</text>
+  </g>
+</svg>

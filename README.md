@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="assets/banner.svg" width="820"
+       alt="spdr · a read-only DDR5 SPD decoder and semantic linter; the wordmark beside a spider drawn from copper PCB traces with a memory chip for its body, eight legs routed as traces with via pads at the joints and feet, over a faint web on a dark circuit board">
+</p>
+
 # spdr
 
 A read-only, complete JESD400-5 SPD content decoder plus a semantic linter that validates beyond CRC.
