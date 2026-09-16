@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 authors.workspace = true
 description = "Zero-copy no_std DDR5 SPD (JESD400-5) content decoder and beyond-CRC semantic linter. Unbuffered (UDIMM) complete; SODIMM, RDIMM, and LRDIMM deferred."
 keywords = ["ddr5", "spd", "jedec", "memory", "no-std"]

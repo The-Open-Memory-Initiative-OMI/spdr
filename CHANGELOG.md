@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-16
+
+Metadata only. No code, no API change, no behaviour change from 0.1.0.
+
+### Changed
+
+- Declare `homepage` on both crates, so crates.io links the project site from
+  the crate pages. Added to `[workspace.package]` and opted into by each member
+  with `homepage.workspace = true`, since workspace inheritance is per field.
+- `spdr-cli` now requires `spdr` 0.1.1, keeping the two in lockstep as 0.1.0
+  released them.
+
 ## [0.1.0] - 2026-06-06
 
 First release: a read-only DDR5 SPD content decoder plus a semantic linter that
@@ -71,4 +83,5 @@ tool (binary `spdr`).
 - The tFAW >= 4 x tRRD_S ordering rule (tRRD_S is not in the decoded timing set).
 - A lint severity-threshold flag.
 
+[0.1.1]: https://github.com/The-Open-Memory-Initiative-OMI/spdr/releases/tag/v0.1.1
 [0.1.0]: https://github.com/The-Open-Memory-Initiative-OMI/spdr/releases/tag/v0.1.0
