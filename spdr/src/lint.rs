@@ -16,7 +16,7 @@
 //! Phase 8 ships the framework and the first rule, capacity consistency
 //! ([`Finding::NonIntegerDeviceCount`]). Phase 9b adds the timing-relationship,
 //! clock-consistency, and speed-bin rules: now that the base JEDEC timings
-//! (Phase 3) and the XMP/EXPO rated profiles (Phase 9a) are decoded, [`lint`]
+//! (Phase 3) and the XMP/EXPO rated profiles (Phase 9a) are decoded, [`lint()`]
 //! also decodes them and checks that the timings are internally self-consistent
 //! and standard where they should be. Each rule runs only where its inputs were
 //! decoded, so a rule needing a field a vendor profile does not carry simply does
@@ -26,7 +26,7 @@
 //! reserved-bit rule keys only off regions open references explicitly declare
 //! reserved and the valid fixture confirms are zero (a region a valid module uses
 //! is excluded, never flagged), and the consistency rules flag only a definitional
-//! incoherence. Every later rule plugs into the same [`lint`] dispatch and the
+//! incoherence. Every later rule plugs into the same [`lint()`] dispatch and the
 //! same [`Finding`] enum.
 
 use crate::identity::{IdentityAndBase, PackageType, decode_identity_and_base};
@@ -221,7 +221,7 @@ pub enum Finding {
 impl Finding {
     /// The inherent severity of this finding.
     #[must_use]
-    pub fn severity(&self) -> Severity {
+    pub const fn severity(&self) -> Severity {
         match self {
             Finding::NonIntegerDeviceCount { .. }
             | Finding::TrcIdentityMismatch { .. }
@@ -238,7 +238,7 @@ impl Finding {
     /// A stable, kebab-case lint code identifying the rule that produced this
     /// finding. Stable across versions, so it can be referenced or filtered on.
     #[must_use]
-    pub fn code(&self) -> &'static str {
+    pub const fn code(&self) -> &'static str {
         match self {
             Finding::NonIntegerDeviceCount { .. } => "non-integer-device-count",
             Finding::TrcIdentityMismatch { .. } => "trc-identity-mismatch",
@@ -495,7 +495,10 @@ fn check_cas_latency(
         return;
     }
     if let Some(set) = supported {
-        let cas_latency = (taa.0 / tck_ps) as u16;
+        // Every decoded tAA and tCK originates from a 16-bit SPD field (see
+        // `ps_units`/`ps`), so the quotient fits `u16`; the narrowing saturates
+        // rather than wraps if a caller ever hand-builds out-of-range values.
+        let cas_latency = u16::try_from(taa.0 / tck_ps).unwrap_or(u16::MAX);
         if !set.contains(cas_latency) {
             sink(Finding::CasLatencyNotSupported { cas_latency });
         }
@@ -810,6 +813,28 @@ mod tests {
             check_cas_latency(Picoseconds(16640), Picoseconds(416), Some(with_cl40), sink);
         });
         assert_eq!(clean, 0);
+    }
+
+    #[test]
+    fn cas_latency_saturates_instead_of_wrapping() {
+        // Unreachable from a decoded image (both fields are 16-bit), so it is
+        // exercised directly: the narrowing must saturate. 65541 cycles wrapped
+        // with `as u16` would be reported as CL5, a plausible-looking latency
+        // that would be silently misreported.
+        let set = decode_timings(&timing_image(416, 16640, [0x02, 0, 0, 0, 0]))
+            .unwrap()
+            .supported_cas_latencies;
+        for (taa, expected) in [(65_541, u16::MAX), (65_536, u16::MAX), (65_535, 65_535_u16)] {
+            let (count, last) =
+                run(|sink| check_cas_latency(Picoseconds(taa), Picoseconds(1), Some(set), sink));
+            assert_eq!(count, 1);
+            assert_eq!(
+                last.unwrap(),
+                Finding::CasLatencyNotSupported {
+                    cas_latency: expected
+                }
+            );
+        }
     }
 
     #[test]

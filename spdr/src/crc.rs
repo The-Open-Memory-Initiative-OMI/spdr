@@ -57,8 +57,12 @@ pub fn crc16(bytes: &[u8]) -> u16 {
 /// Computes the CRC over bytes `0..=509`, reads the stored CRC from byte 510
 /// (low) and byte 511 (high), and reports both values with whether they match.
 /// This is a queryable check only: a mismatch is reported, never raised, so it
-/// cannot block decoding. Returns [`DecodeError::Truncated`] only if the image
-/// is too short to contain the covered range and the stored CRC (512 bytes).
+/// cannot block decoding.
+///
+/// # Errors
+///
+/// Returns [`DecodeError::Truncated`] only if the image is too short to contain
+/// the covered range and the stored CRC (512 bytes).
 pub fn verify_base_crc(bytes: &[u8]) -> Result<CrcStatus, DecodeError> {
     let covered = bytes
         .get(..=CRC_COVERED_END)

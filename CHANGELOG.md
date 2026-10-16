@@ -4,6 +4,45 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Quality and documentation pass over the shipped surface. No public API change
+and no decoded-output change: every test and snapshot passes unchanged.
+
+### Added
+
+- Regression tests for the two saturation guards and the supported-CAS bit
+  domain, so the silent-narrowing fix above cannot come back unnoticed: each was
+  confirmed to fail against the previous `as` cast (it reported a wrapped `CL5`
+  instead of a saturated one).
+- 29 pure decoders and accessors marked `const fn`, so a constant SPD byte can be
+  decoded at compile time — the point of an embeddable `no_std` crate.
+- An explicit `# Errors` section on every public `Result`-returning function,
+  and a curated set of `clippy::pedantic` lints (silent-cast, doc, and argument
+  idioms) denied at the workspace level, so the classes of issue fixed here
+  cannot silently regress. CI now also builds rustdoc with `-D warnings`.
+
+### Fixed
+
+- The documented reason the fuzz harness "cannot link on Windows" was wrong: it
+  does compile and link under MSVC, then fails to load on the
+  `clang_rt.asan_dynamic-x86_64.dll` import. Corrected in
+  `spdr/fuzz/Cargo.toml` and the Phase 6 report, with the attempt recorded in
+  the deep-run ledger instead of left silently blank.
+- Rustdoc parsed bit-range notation in doc comments (`bits [7:5]`) as
+  intra-doc links, so every rendered field doc was a broken link; the notation
+  is now escaped and renders exactly as written. Caught by the new doc gate.
+- The two internal CAS-latency derivations (the linter's supported-set check and
+  the vendor-profile rated CL) narrowed `u32` quotients to `u16` with an
+  unchecked `as`. The quotient always fit for decoded SPD bytes, but the
+  narrowing is now explicit and saturating instead of wrapping for out-of-range
+  hand-built values.
+- The supported-CAS mask arithmetic and the reference-raw-card `Display` used
+  unchecked narrowing casts on a constant bit count and on array-length
+  indexing; both now compute in one integer domain, with a compile-time check
+  tying the mask bit count to its byte count.
+- A rustdoc warning: a public doc link to a private item in `spdr-cli`.
+
 ## [0.1.1] - 2026-09-16
 
 Metadata only. No code, no API change, no behaviour change from 0.1.0.

@@ -93,7 +93,7 @@ impl DecodeResults<'_> {
     /// is itself a successful decode (`Ok`) and does not make this `false`;
     /// integrity and consistency are the linter's job (the `lint` subcommand).
     #[must_use]
-    pub fn all_decoded(&self) -> bool {
+    pub const fn all_decoded(&self) -> bool {
         self.identity.is_ok()
             && self.crc.is_ok()
             && self.timings.is_ok()
@@ -159,7 +159,7 @@ fn run_decode(args: &DecodeArgs) -> i32 {
     };
     println!("{rendered}");
 
-    if results.all_decoded() { 0 } else { 1 }
+    i32::from(!results.all_decoded())
 }
 
 // --- Lint surface ----------------------------------------------------------
@@ -198,7 +198,7 @@ pub fn lint_report(bytes: &[u8]) -> LintReport {
 
 /// The lint exit code computed from the findings: `1` if any `Error` or `Warning`
 /// is present, `0` if there are none or only `Info` advisories. The operational
-/// `2` (unreadable file or bad arguments) is handled in [`run_lint`] and by clap,
+/// `2` (unreadable file or bad arguments) is handled in `run_lint` and by clap,
 /// never here.
 #[must_use]
 pub fn lint_exit_code(findings: &[Finding]) -> i32 {
@@ -241,7 +241,7 @@ fn run_lint(args: &LintArgs) -> i32 {
 }
 
 /// The severity sort rank: errors first, then warnings, then info.
-fn severity_rank(severity: Severity) -> u8 {
+const fn severity_rank(severity: Severity) -> u8 {
     match severity {
         Severity::Error => 0,
         Severity::Warning => 1,
@@ -250,7 +250,7 @@ fn severity_rank(severity: Severity) -> u8 {
 }
 
 /// The lowercase severity label used in both lint renders.
-fn severity_label(severity: Severity) -> &'static str {
+const fn severity_label(severity: Severity) -> &'static str {
     match severity {
         Severity::Error => "error",
         Severity::Warning => "warning",
@@ -613,20 +613,20 @@ fn render_xmp(out: &mut String, xmp: &Xmp) {
             profile2,
         } => {
             vline(out, 2, "Intel XMP 3.0:", "present");
-            vline(out, 4, "Header section CRC:", crc_summary(header_crc));
-            render_xmp_slot(out, 1, profile1);
-            render_xmp_slot(out, 2, profile2);
+            vline(out, 4, "Header section CRC:", crc_summary(*header_crc));
+            render_xmp_slot(out, 1, profile1.as_ref());
+            render_xmp_slot(out, 2, profile2.as_ref());
         }
     }
 }
 
-fn render_xmp_slot(out: &mut String, number: u8, slot: &Option<XmpProfile>) {
+fn render_xmp_slot(out: &mut String, number: u8, slot: Option<&XmpProfile>) {
     match slot {
         Some(p) => {
             let name = p.name.unwrap_or("(unnamed)");
             vheading(out, 4, &format!("Profile {number}: {name}"));
             render_rated(out, &p.rated);
-            vline(out, 6, "Section CRC:", crc_summary(&p.crc));
+            vline(out, 6, "Section CRC:", crc_summary(p.crc));
         }
         None => vheading(out, 4, &format!("Profile {number}: (not enabled)")),
     }
@@ -641,14 +641,14 @@ fn render_expo(out: &mut String, expo: &Expo) {
             profile2,
         } => {
             vline(out, 2, "AMD EXPO:", "present");
-            vline(out, 4, "Block section CRC:", crc_summary(block_crc));
-            render_expo_slot(out, 1, profile1);
-            render_expo_slot(out, 2, profile2);
+            vline(out, 4, "Block section CRC:", crc_summary(*block_crc));
+            render_expo_slot(out, 1, profile1.as_ref());
+            render_expo_slot(out, 2, profile2.as_ref());
         }
     }
 }
 
-fn render_expo_slot(out: &mut String, number: u8, slot: &Option<ExpoProfile>) {
+fn render_expo_slot(out: &mut String, number: u8, slot: Option<&ExpoProfile>) {
     match slot {
         Some(p) => {
             vheading(out, 4, &format!("Profile {number}:"));
@@ -707,7 +707,7 @@ fn timing_clocks(t: Picoseconds, cycle_time: Picoseconds) -> String {
 }
 
 /// One-line CRC summary: the computed and stored values and whether they match.
-fn crc_summary(crc: &CrcStatus) -> String {
+fn crc_summary(crc: CrcStatus) -> String {
     format!(
         "computed {:#06X}, stored {:#06X} ({})",
         crc.computed,
@@ -716,7 +716,7 @@ fn crc_summary(crc: &CrcStatus) -> String {
     )
 }
 
-fn yes_no(value: bool) -> &'static str {
+const fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
 

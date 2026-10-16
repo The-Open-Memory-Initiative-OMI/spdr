@@ -1,11 +1,17 @@
 # cargo-fuzz harness for the `spdr` decoders.
 #
-# This is committed but is NOT built or run by the Windows gate: libFuzzer needs
-# a clang/LLVM (Linux or WSL) toolchain that Windows MSVC does not provide, so it
-# cannot link here. The empty `[workspace]` table makes `fuzz/` its own workspace
-# root, so the parent's `cargo ... --workspace` never sees this package. Mert runs
-# it manually on Linux; see
-# `docs/implementations/2026-06-05-phase-6-robustness.md` for the invocation.
+# This is committed but is NOT run by the Windows gate, and it cannot run on a
+# stock Windows MSVC toolchain. Measured, not assumed: `cargo fuzz build
+# decode_all` DOES compile and link here, but the resulting binary imports
+# `clang_rt.asan_dynamic-x86_64.dll`, so it exits `STATUS_DLL_NOT_FOUND`
+# (0xC0000135) when that runtime is not on PATH, and
+# `STATUS_ENTRYPOINT_NOT_FOUND` (0xC0000139) when LLVM's copy is; rebuilding
+# with `CC=clang CXX=clang++` fails to link instead (LNK1120, unresolved
+# external). So the deep run belongs on Linux or WSL. The empty `[workspace]`
+# table makes `fuzz/` its own workspace root, so the parent's `cargo ...
+# --workspace` never sees this package. See
+# `docs/implementations/2026-06-05-phase-6-robustness.md` for the invocation and
+# the deep-run ledger.
 [package]
 name = "spdr-fuzz"
 version = "0.0.0"

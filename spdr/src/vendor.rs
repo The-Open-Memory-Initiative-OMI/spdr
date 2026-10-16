@@ -253,8 +253,12 @@ pub struct VendorProfiles<'a> {
 /// Decode both vendor-profile regions (XMP 3.0 and EXPO) from a raw SPD image.
 ///
 /// A convenience over [`decode_xmp`] and [`decode_expo`]; see those for the
-/// per-region contract. Returns [`DecodeError::Truncated`] if the image is too
-/// short for a byte a present region reads; an absent region is not an error.
+/// per-region contract. An absent region is not an error.
+///
+/// # Errors
+///
+/// Returns [`DecodeError::Truncated`] if the image is too short for a byte a
+/// present region reads.
 pub fn decode_vendor_profiles(bytes: &[u8]) -> Result<VendorProfiles<'_>, DecodeError> {
     Ok(VendorProfiles {
         xmp: decode_xmp(bytes)?,
@@ -266,9 +270,12 @@ pub fn decode_vendor_profiles(bytes: &[u8]) -> Result<VendorProfiles<'_>, Decode
 ///
 /// Detects presence by the magic at offset 640. If absent, returns
 /// [`Xmp::Absent`] and reads nothing further. If present, decodes the header
-/// CRC and each enabled profile through [`SpdImage`]. Returns
-/// [`DecodeError::Truncated`] only if the image is long enough to hold the magic
-/// but too short for a byte a present profile reads. Never panics.
+/// CRC and each enabled profile through [`SpdImage`]. Never panics.
+///
+/// # Errors
+///
+/// Returns [`DecodeError::Truncated`] only if the image is long enough to hold
+/// the magic but too short for a byte a present profile reads.
 pub fn decode_xmp(bytes: &[u8]) -> Result<Xmp<'_>, DecodeError> {
     let spd = SpdImage::new(bytes);
 
@@ -312,9 +319,12 @@ pub fn decode_xmp(bytes: &[u8]) -> Result<Xmp<'_>, DecodeError> {
 ///
 /// Detects presence by the `"EXPO"` magic at offset 832. If absent, returns
 /// [`Expo::Absent`]. If present, decodes the single block CRC and each populated
-/// profile through [`SpdImage`]. Returns [`DecodeError::Truncated`] only if the
-/// image is long enough to hold the magic but too short for a byte the present
-/// block reads. Never panics.
+/// profile through [`SpdImage`]. Never panics.
+///
+/// # Errors
+///
+/// Returns [`DecodeError::Truncated`] only if the image is long enough to hold
+/// the magic but too short for a byte the present block reads.
 pub fn decode_expo(bytes: &[u8]) -> Result<Expo, DecodeError> {
     let spd = SpdImage::new(bytes);
 
@@ -402,6 +412,7 @@ fn decode_expo_profile(
 }
 
 /// The three voltage bytes of a profile, in their raw encoding.
+#[derive(Clone, Copy)]
 struct Voltages {
     vdd: u8,
     vddq: u8,
@@ -411,6 +422,7 @@ struct Voltages {
 /// The five timing-field offsets of a profile. XMP and EXPO place these
 /// differently, so the caller supplies the absolute offsets and this assembles
 /// the shared [`RatedTimings`].
+#[derive(Clone, Copy)]
 struct Offsets {
     tck: usize,
     taa: usize,
@@ -484,13 +496,15 @@ fn voltage(byte: u8) -> Millivolts {
 
 /// Derive the rated CAS latency: tAA in whole cycles of the cycle time, rounded
 /// to nearest. Guards a zero cycle time (returns 0) so malformed input cannot
-/// divide by zero.
+/// divide by zero. Decoded values are 16-bit picoseconds, so the rounded
+/// quotient fits `u16`; the narrowing saturates instead of wrapping if a caller
+/// ever hand-builds out-of-range values.
 fn rated_cas_latency(taa: Picoseconds, cycle_time: Picoseconds) -> u16 {
     let tck = cycle_time.0;
     if tck == 0 {
         return 0;
     }
-    ((taa.0 + tck / 2) / tck) as u16
+    u16::try_from(taa.0.saturating_add(tck / 2) / tck).unwrap_or(u16::MAX)
 }
 
 /// Read a 16-byte profile name at `off`, trimmed of trailing spaces and NULs.
@@ -541,6 +555,33 @@ mod tests {
         assert_eq!(rated_cas_latency(Picoseconds(14280), Picoseconds(357)), 40);
         // A zero cycle time cannot divide by zero.
         assert_eq!(rated_cas_latency(Picoseconds(12654), Picoseconds(0)), 0);
+    }
+
+    #[test]
+    fn rated_cas_latency_saturates_instead_of_wrapping() {
+        // Unreachable from a decoded image (both fields are 16-bit), so it is
+        // exercised directly: the guard must saturate. 65541 cycles wrapped with
+        // `as u16` would come out as CL5, a plausible-looking latency that
+        // silently misreports the profile; saturation reports CL65535 instead.
+        assert_eq!(
+            rated_cas_latency(Picoseconds(65_541), Picoseconds(1)),
+            u16::MAX
+        );
+        // The rounding add cannot overflow the way a plain `taa + tck / 2` could.
+        assert_eq!(
+            rated_cas_latency(Picoseconds(u32::MAX), Picoseconds(u32::MAX)),
+            1
+        );
+        // One past `u16::MAX` cycles, still saturated rather than wrapped to 0.
+        assert_eq!(
+            rated_cas_latency(Picoseconds(65_536), Picoseconds(1)),
+            u16::MAX
+        );
+        // The last representable count is exact, not clamped.
+        assert_eq!(
+            rated_cas_latency(Picoseconds(65_535), Picoseconds(1)),
+            65_535
+        );
     }
 
     #[test]
@@ -686,7 +727,7 @@ mod tests {
         write_le_u16(img, base + EXPO_TRAS, tras);
     }
 
-    /// A small no_std sink so [`fmt::Display`] output can be asserted without
+    /// A small `no_std` sink so [`fmt::Display`] output can be asserted without
     /// `alloc`, mirroring the helper in the module-specific tests.
     struct Sink {
         data: [u8; 16],

@@ -18,3 +18,17 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = "deny"
+# A curated set from `clippy::pedantic`: each of these caught a real issue in
+# this codebase (silent `as` narrowing, undocumented `Result` errors,
+# undocumented identifiers in docs, `&Option<T>` arguments, needless
+# pass-by-value). Kept curated rather than a blanket `pedantic` so a future
+# upstream pedantic lint cannot break CI on a toolchain bump. `ref_option`
+# postdates the 1.85 MSRV; plain `rustc` ignores `clippy::*` names entirely, so
+# MSRV builds are unaffected (only clippy runs on pre-1.87 toolchains warn).
+bool_to_int_with_if = "deny"
+cast_possible_truncation = "deny"
+doc_markdown = "deny"
+missing_errors_doc = "deny"
+needless_pass_by_value = "deny"
+ref_option = "deny"
+trivially_copy_pass_by_ref = "deny"

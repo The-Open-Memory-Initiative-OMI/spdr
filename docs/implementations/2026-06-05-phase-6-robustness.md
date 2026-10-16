@@ -24,10 +24,15 @@ Two tools, split by where they can run:
 - **proptest** lives in the gate. It runs on Windows and in CI and is the
   always-on check. No CI workflow change is needed: the new properties are
   ordinary `#[test]`s and ride into the existing `cargo test` job.
-- **cargo-fuzz** is committed as a harness but is **not built or run here**.
-  libFuzzer needs a clang/LLVM toolchain (Linux or WSL) that Windows MSVC does
-  not provide, so the fuzz crate cannot link on this machine. It is scaffolded,
-  rustfmt-clean, and ready for Mert to run on Linux. No fuzz result is claimed.
+- **cargo-fuzz** is committed as a harness but is **not run here**, and cannot
+  run on this machine. Measured rather than assumed: `cargo fuzz build
+  decode_all` does compile and link under Windows MSVC, but the resulting
+  binary imports `clang_rt.asan_dynamic-x86_64.dll`, so it exits
+  `STATUS_DLL_NOT_FOUND` (0xC0000135) when that runtime is not on `PATH` and
+  `STATUS_ENTRYPOINT_NOT_FOUND` (0xC0000139) when LLVM's copy is; forcing
+  `CC=clang CXX=clang++` fails to link instead (LNK1120, unresolved external).
+  The harness is scaffolded, rustfmt-clean, and ready for Mert to run on Linux.
+  No fuzz result is claimed.
 
 ## What Changed
 
@@ -122,10 +127,11 @@ capturing the shrunk input, never a weakening of the property.
 
 - **proptest in the gate, cargo-fuzz committed-but-not-run.** The split follows
   what each tool needs. proptest is pure Rust and runs anywhere `cargo test`
-  does, so it is the always-on regression guard. libFuzzer needs clang/LLVM and
-  does not link under Windows MSVC, so the fuzz harness is scaffolded and
-  rustfmt-clean but deliberately not built here. The report states the fuzz crate
-  was not run rather than implying a fuzz result.
+  does. proptest is pure Rust and runs anywhere `cargo test`
+  does, so it is the always-on regression guard. libFuzzer's Windows MSVC
+  support is incomplete in the ways measured above, so the fuzz harness is
+  scaffolded and rustfmt-clean but deliberately not run here. The report states
+  the fuzz crate was not run rather than implying a fuzz result.
 - **A stronger assertion only where the space is finite.** The two proptest
   properties assert no-panic only, because arbitrary and mutated bytes legitimately
   produce `UnknownEnum` and `NonAscii`, which are correct outcomes, not failures.
@@ -166,8 +172,9 @@ Phase 1 through 5 unit, integration, and snapshot suites are untouched and green
 
 ### Fuzzing (Linux / WSL, run manually by Mert)
 
-The fuzz crate is **not built or run on Windows**: libFuzzer cannot link under
-MSVC. On a Linux or WSL host with a nightly toolchain and `cargo-fuzz` installed
+The fuzz crate is **not run on Windows**: it builds, but its binary cannot load
+here (see the measured details in Design Decisions). On a Linux or WSL host with
+a nightly toolchain and `cargo-fuzz` installed
 (`cargo install cargo-fuzz`), from the `spdr/` crate directory:
 
 ```
@@ -190,6 +197,18 @@ fixture's decode left unchanged.
 | Date | Host | Command | Executions | Duration | Result |
 | --- | --- | --- | --- | --- | --- |
 | _pending_ | _pending_ | `cargo +nightly fuzz run decode_all -- -max_total_time=<s>` | _pending_ | _pending_ | _pending_ |
+
+Attempted and recorded so the empty row above is not mistaken for an oversight:
+
+| Date | Host | Command | Result |
+| --- | --- | --- | --- |
+| 2026-10-16 | Windows 11, MSVC + Scoop LLVM 23 | `cargo +nightly fuzz run decode_all -- -max_total_time=45` | Build and link succeed; the binary then exits `STATUS_DLL_NOT_FOUND` (0xC0000135) on the missing `clang_rt.asan_dynamic-x86_64.dll`, `STATUS_ENTRYPOINT_NOT_FOUND` (0xC0000139) with LLVM's runtime on `PATH`, and `CC=clang CXX=clang++` fails to link (LNK1120). Zero executions, so it earns no fuzz result. |
+
+The same date's Windows substitute for a deep run is the proptest surface at
+raised case counts, which passes on this host: from `spdr/`,
+`PROPTEST_CASES=100000 cargo test --release --test robustness` (both properties
+plus the exhaustive truncation test; 3 passed in 1.17 s on 2026-10-16). That is
+still property-testing, not fuzzing, and the README wording stays accordingly.
 
 Only after a recorded deep run with no crash does the README earn the word
 "fuzzed" as a completed claim.
