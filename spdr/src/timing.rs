@@ -97,15 +97,16 @@ pub struct CasLatencies(u64);
 
 impl CasLatencies {
     const BASE_CL: u16 = 20;
-    const BIT_COUNT: u32 = (CAS_LATENCY_BYTES * 8) as u32;
+    /// The number of mask bits in the set: `CAS_LATENCY_BYTES` * 8.
+    const BIT_COUNT: u16 = 40;
 
     /// Whether `cl` is in the supported set.
     #[must_use]
-    pub fn contains(self, cl: u16) -> bool {
+    pub const fn contains(self, cl: u16) -> bool {
         if cl < Self::BASE_CL || (cl - Self::BASE_CL) % 2 != 0 {
             return false;
         }
-        let bit = u32::from((cl - Self::BASE_CL) / 2);
+        let bit = (cl - Self::BASE_CL) / 2;
         bit < Self::BIT_COUNT && (self.0 >> bit) & 1 != 0
     }
 
@@ -113,13 +114,19 @@ impl CasLatencies {
     pub fn iter(self) -> impl Iterator<Item = u16> {
         (0..Self::BIT_COUNT).filter_map(move |bit| {
             if (self.0 >> bit) & 1 != 0 {
-                Some(Self::BASE_CL + 2 * bit as u16)
+                Some(Self::BASE_CL + 2 * bit)
             } else {
                 None
             }
         })
     }
 }
+
+// `CasLatencies::BIT_COUNT` is written as a literal so the whole bit-index
+// domain stays `u16` (no narrowing anywhere in `contains`/`iter`); this
+// compile-time check keeps it from drifting from the byte count it derives
+// from. The `as usize` is a lossless widening (const `From` is not stable yet).
+const _: () = assert!(CAS_LATENCY_BYTES * 8 == CasLatencies::BIT_COUNT as usize);
 
 impl fmt::Debug for CasLatencies {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -156,39 +163,39 @@ pub struct Timings {
     pub tckavg_max: Picoseconds,
     /// Supported CAS latencies.
     pub supported_cas_latencies: CasLatencies,
-    /// CAS latency time (tAA).
+    /// CAS latency time (`tAA`).
     pub taa: Picoseconds,
-    /// RAS-to-CAS delay (tRCD).
+    /// RAS-to-CAS delay (`tRCD`).
     pub trcd: Picoseconds,
-    /// Row precharge time (tRP).
+    /// Row precharge time (`tRP`).
     pub trp: Picoseconds,
-    /// Active-to-precharge time (tRAS).
+    /// Active-to-precharge time (`tRAS`).
     pub tras: Picoseconds,
-    /// Active-to-active / refresh cycle time (tRC).
+    /// Active-to-active / refresh cycle time (`tRC`).
     pub trc: Picoseconds,
-    /// Write recovery time (tWR).
+    /// Write recovery time (`tWR`).
     pub twr: Picoseconds,
-    /// Normal refresh recovery time (tRFC1).
+    /// Normal refresh recovery time (`tRFC1`).
     pub trfc1: Picoseconds,
-    /// Fine-granularity refresh recovery time (tRFC2).
+    /// Fine-granularity refresh recovery time (`tRFC2`).
     pub trfc2: Picoseconds,
-    /// Same-bank refresh recovery time (tRFCsb).
+    /// Same-bank refresh recovery time (`tRFCsb`).
     pub trfcsb: Picoseconds,
-    /// Activate-to-activate, same bank group (tRRD_L).
+    /// Activate-to-activate, same bank group (`tRRD_L`).
     pub trrd_l: TimingPair,
-    /// CAS-to-CAS, same bank group (tCCD_L).
+    /// CAS-to-CAS, same bank group (`tCCD_L`).
     pub tccd_l: TimingPair,
-    /// Write CAS-to-CAS, same bank group (tCCD_L_WR).
+    /// Write CAS-to-CAS, same bank group (`tCCD_L_WR`).
     pub tccd_l_wr: TimingPair,
-    /// Second-write CAS-to-CAS, same bank group (tCCD_L_WR2).
+    /// Second-write CAS-to-CAS, same bank group (`tCCD_L_WR2`).
     pub tccd_l_wr2: TimingPair,
-    /// Four-activate window (tFAW).
+    /// Four-activate window (`tFAW`).
     pub tfaw: TimingPair,
-    /// Write-to-read, same bank group (tWTR_L).
+    /// Write-to-read, same bank group (`tWTR_L`).
     pub twtr_l: TimingPair,
-    /// Write-to-read, different bank group (tWTR_S).
+    /// Write-to-read, different bank group (`tWTR_S`).
     pub twtr_s: TimingPair,
-    /// Read-to-precharge (tRTP).
+    /// Read-to-precharge (`tRTP`).
     pub trtp: TimingPair,
 }
 
@@ -197,17 +204,20 @@ impl Timings {
     /// nearest 100. For this fixture this is the base fallback (DDR5-4800), not
     /// the advertised XMP/EXPO profile rate.
     #[must_use]
-    pub fn base_data_rate_mt_s(&self) -> u32 {
+    pub const fn base_data_rate_mt_s(&self) -> u32 {
         data_rate_mt_s(self.tckavg_min)
     }
 }
 
 /// Decode the base JEDEC timing block from a raw SPD image.
 ///
-/// Reads every byte through [`SpdImage`], so a short image yields
-/// [`DecodeError::Truncated`] rather than a panic. The base timing parameters
-/// are raw integer encodings with no reserved values, so truncation is the only
-/// error this can return.
+/// Reads every byte through [`SpdImage`], never panicking. The base timing
+/// parameters are raw integer encodings with no reserved values.
+///
+/// # Errors
+///
+/// Returns [`DecodeError::Truncated`] if the image is too short for a required
+/// byte — the only error this can return.
 pub fn decode_timings(bytes: &[u8]) -> Result<Timings, DecodeError> {
     let spd = SpdImage::new(bytes);
 
@@ -275,9 +285,10 @@ fn decode_cas_latencies(spd: &SpdImage) -> Result<CasLatencies, DecodeError> {
 }
 
 /// Data rate in MT/s for a clock period, rounded to the nearest 100; 0 if the
-/// period is zero. Crate-visible so the XMP/EXPO profile decode derives its
-/// rated data rate through the same rounding rather than duplicating it.
-pub(crate) fn data_rate_mt_s(tckavg_min: Picoseconds) -> u32 {
+/// period is zero. Crate-visible (this module is private, so `pub` stays
+/// crate-internal) so the XMP/EXPO profile decode derives its rated data rate
+/// through the same rounding rather than duplicating it.
+pub const fn data_rate_mt_s(tckavg_min: Picoseconds) -> u32 {
     if tckavg_min.0 == 0 {
         return 0;
     }
@@ -335,6 +346,40 @@ mod tests {
         assert_eq!(cl.iter().count(), 10);
         assert_eq!(cl.iter().next(), Some(22));
         assert_eq!(cl.iter().last(), Some(40));
+    }
+
+    #[test]
+    fn cas_latency_bit_domain_covers_exactly_the_mask() {
+        // The bit-index arithmetic lives entirely in `u16` (no narrowing), so
+        // pin the boundary of the domain: the last mask bit is CL98 and nothing
+        // beyond it is in the set.
+        let all = CasLatencies(u64::MAX);
+        assert_eq!(CasLatencies::BIT_COUNT, 40);
+        assert!(all.contains(CasLatencies::BASE_CL));
+        assert!(all.contains(98)); // BASE_CL + 2 * 39, the final bit
+        assert!(!all.contains(100)); // one past the last bit
+        assert!(!all.contains(19)); // below BASE_CL
+        assert_eq!(all.iter().count(), 40);
+
+        // `contains` and `iter` must agree bit for bit across the whole mask,
+        // including every single-bit set, which is where an off-by-one in the
+        // index domain would show.
+        for bit in 0..CasLatencies::BIT_COUNT {
+            let one = CasLatencies(1 << bit);
+            assert_eq!(one.iter().count(), 1, "bit {bit}");
+            assert_eq!(
+                one.iter().next(),
+                Some(CasLatencies::BASE_CL + 2 * bit),
+                "bit {bit}"
+            );
+            for cl in 20..=100u16 {
+                assert_eq!(
+                    one.contains(cl),
+                    cl == CasLatencies::BASE_CL + 2 * bit,
+                    "bit {bit}, CL{cl}"
+                );
+            }
+        }
     }
 
     #[test]

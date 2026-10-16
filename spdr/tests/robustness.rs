@@ -83,26 +83,26 @@ fn every_truncation_returns_ok_or_truncated() {
         let truncated = &FIXTURE[..len];
 
         assert_ok_or_truncated(
-            spdr::decode_identity_and_base(truncated),
+            &spdr::decode_identity_and_base(truncated),
             len,
             "identity and base",
         );
-        assert_ok_or_truncated(spdr::verify_base_crc(truncated), len, "base CRC");
+        assert_ok_or_truncated(&spdr::verify_base_crc(truncated), len, "base CRC");
         // `crc16` returns a plain `u16` and cannot error; exercise it for the
         // panic check only.
         let _ = spdr::crc16(truncated);
-        assert_ok_or_truncated(spdr::decode_timings(truncated), len, "timings");
+        assert_ok_or_truncated(&spdr::decode_timings(truncated), len, "timings");
         assert_ok_or_truncated(
-            spdr::decode_module_specific(truncated),
+            &spdr::decode_module_specific(truncated),
             len,
             "module-specific",
         );
-        assert_ok_or_truncated(spdr::decode_manufacturing(truncated), len, "manufacturing");
+        assert_ok_or_truncated(&spdr::decode_manufacturing(truncated), len, "manufacturing");
         // The vendor regions read past the bytes the base block covers, so most
         // prefixes are `Truncated`; a present-magic region either reads fully
         // (`Ok`) or runs off the end (`Truncated`), never another variant.
-        assert_ok_or_truncated(spdr::decode_xmp(truncated), len, "XMP");
-        assert_ok_or_truncated(spdr::decode_expo(truncated), len, "EXPO");
+        assert_ok_or_truncated(&spdr::decode_xmp(truncated), len, "XMP");
+        assert_ok_or_truncated(&spdr::decode_expo(truncated), len, "EXPO");
     }
 }
 
@@ -111,7 +111,7 @@ fn every_truncation_returns_ok_or_truncated() {
 /// (the remaining bytes are all valid), and a panic would already have aborted
 /// the test before this returned.
 fn assert_ok_or_truncated<T: std::fmt::Debug>(
-    result: Result<T, DecodeError>,
+    result: &Result<T, DecodeError>,
     len: usize,
     decoder: &str,
 ) {
