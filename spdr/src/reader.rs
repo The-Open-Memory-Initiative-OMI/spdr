@@ -29,12 +29,16 @@ impl<'a> SpdImage<'a> {
 
     /// Whether the underlying image is empty.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
 
-    /// Read the single byte at `offset`, or [`DecodeError::Truncated`] if the
-    /// image is too short to contain it. Uses `slice::get`, never indexing.
+    /// Read the single byte at `offset`. Uses `slice::get`, never indexing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DecodeError::Truncated`] if the image is too short to contain
+    /// the byte at `offset`.
     pub fn byte(&self, offset: usize) -> Result<u8, DecodeError> {
         self.bytes
             .get(offset)
@@ -45,11 +49,15 @@ impl<'a> SpdImage<'a> {
             })
     }
 
-    /// Borrow `len` bytes starting at `offset`, or [`DecodeError::Truncated`] if
-    /// the image is too short to contain them. Zero-copy: the returned slice
+    /// Borrow `len` bytes starting at `offset`. Zero-copy: the returned slice
     /// borrows the input image for the image's lifetime, so a decoded value can
     /// hold it without a copy (the part-number `&str` does). Uses `slice::get`,
     /// never indexing. `len` must be at least 1.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DecodeError::Truncated`] if the image is too short to contain
+    /// `len` bytes at `offset`.
     pub fn slice(&self, offset: usize, len: usize) -> Result<&'a [u8], DecodeError> {
         self.bytes
             .get(offset..offset + len)

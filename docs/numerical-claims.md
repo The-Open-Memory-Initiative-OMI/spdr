@@ -198,3 +198,43 @@ Two reference-declared-reserved regions are deliberately excluded: `reserved_240
 | monolithic package carries exactly one die; DDP/3DS carries more than one | Error | monolithic, 1 die | yes |
 
 Pinned to the JEDEC byte-4 package-type encoding Phase 1 decodes (and edlf's `sdram1Density` package bits). The current decode derives `package_type` and `die_count` from the same byte-4 bits, so the relationship holds by construction and the rule is a defense-in-depth invariant guard; it is exercised by a directly-constructed incoherent geometry in the unit tests.
+
+## Quality pass · narrowing, `const`, and the doc gate (2026-10-16)
+
+A behaviour-preserving pass over the shipped surface: no decoded output changed, and every golden snapshot passes byte for byte.
+
+### Counts measured from the diff
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Functions marked `const fn` | 31 (27 in `spdr`, 4 in `spdr-cli`) | Measured: `git diff 6b0d2d5 663a30f -U0 -- '*.rs'`, counting added lines matching `const fn`. Per file: `identity.rs` 14, `module.rs` 4, `manufacturing.rs` 3, `timing.rs` 3, `lint.rs` 2, `reader.rs` 1, `spdr-cli/src/lib.rs` 4. |
+| Public items that gained `const` | 6 | Measured: `Finding::severity`, `Finding::code`, `SpdImage::is_empty`, `CasLatencies::contains`, `Timings::base_data_rate_mt_s` (in `spdr`), and `DecodeResults::all_decoded` (in `spdr-cli`). Additive, so removing `const` afterwards would be a breaking change. |
+| Public `decode_*` entry points that are `const` | 0 | Measured: no `pub const fn decode_*` exists; every decoder marked `const` is crate-internal, so a downstream user still cannot decode an SPD image at compile time. |
+| Rustdoc warnings on the base `6b0d2d5` | 22 | Measured: `cargo doc --workspace --no-deps --lib` in a worktree at `6b0d2d5` · 21 unresolved bit-range link warnings in `spdr`, plus one public-doc-link-to-private-item warning in `spdr-cli` (`lint_exit_code` links to the private `run_lint`). |
+| Bit-range links in the base rendered HTML | 0 | Measured: the rendered `bits [7:5]` text appears in the generated pages, and no occurrence is wrapped in an `<a>` element. The base output was therefore correct; the defect was the warnings, which the new `-D warnings` gate turns into a build failure. |
+
+### Toolchain measurements
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| `ref_option` in the MSRV toolchain | known to clippy 1.85.1, and implied by `clippy::pedantic` | Measured: on a probe crate, `cargo +1.85.1 clippy -- -W clippy::pedantic` reports ``-W clippy::ref-option` implied by `-W clippy::pedantic`; an invented lint name on the same toolchain gives `error[E0602]: unknown lint`, so the name is resolved rather than ignored. |
+| `bool_to_int_with_if` against the CLI's bool-to-int form | fires on the branch form, not on `i32::from(!flag)` | Measured: clippy 0.1.99 reports "boolean to int conversion using if" for `if results.all_decoded() { 0 } else { 1 }` and asks for `i32::from(!results.all_decoded())` instead; the `i32::from(!flag)` form raises no warning on clippy 1.85.1 or on clippy 0.1.99. It is a style guard with no bearing on a wrong value, so it was dropped from the workspace deny list and the readable branch form kept. |
+
+### Runs recorded in the deep-run ledger
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Proptest substitute run | `PROPTEST_CASES=100000 cargo test --release --test robustness` · 3 passed in 1.17 s | Measured on 2026-10-16, Windows 11 x86_64, by `danalec`; recorded in the Phase 6 deep-run ledger. This is property-testing, not fuzzing. |
+| Fuzz attempt, zero executions | `cargo +nightly fuzz run decode_all -- -max_total_time=45` | Measured on 2026-10-16, Windows 11 x86_64, MSVC + Scoop LLVM 23, by `danalec`: it builds and links, then exits `STATUS_DLL_NOT_FOUND` (0xC0000135) on the missing `clang_rt.asan_dynamic-x86_64.dll`; `STATUS_ENTRYPOINT_NOT_FOUND` (0xC0000139) with LLVM's runtime on `PATH`; `CC=clang CXX=clang++` fails to link with LNK1120. Zero executions, so it earns no fuzz result. |
+| CLI exit codes | `decode` 0 / 1 / 2 · `lint` 0 / 1 / 2 | Asserted by the `spdr-cli` integration tests (`decode_fixture_exits_zero`, `decode_truncated_file_exits_one_with_partial_output`, `decode_nonexistent_path_exits_two_with_stderr`, and the `lint` equivalents). Unchanged by this pass. |
+| Round-to-nearest at the `u32` ceiling | `u32::MAX` ps over `2^31` ps rounds to 2 | Arithmetic in `u64`: `(4294967295 + 1073741824) / 2147483648` is 2, where the previous saturating `u32` add gave 1. Asserted by `rated_cas_latency_rounds_in_u64`. |
+
+## Documentation-accuracy correction (2026-11-06)
+
+Two claims introduced by the review-fix commit were measured again and corrected.
+
+| Claim | Value | Source |
+| --- | --- | --- |
+| Blanket `-W clippy::pedantic` on the review-fix head | 1 warning | Measured on 2026-11-06: `cargo clippy --workspace --all-targets -- -W clippy::pedantic` at `fd92f40` emits `bool_to_int_with_if` ("boolean to int conversion using if") for the restored `if results.all_decoded() { 0 } else { 1 }` exit code, on Windows (clippy 0.1.99) and Linux (clippy 0.1.98). The lint is not in the workspace deny list and the CI gate does not enable blanket `pedantic`, so the `-D warnings` gate stays clean. |
+| Blanket `-W clippy::pedantic` on the pre-review head | 0 warnings | Measured on 2026-11-06 in a worktree at `663a30f`, where the exit code was `i32::from(!results.all_decoded())`, a form the lint does not warn on (see the toolchain measurements above). This is the result the note's "zero warnings" line was carried over from; it does not describe the review-fix head. |
+| Unresolved-link warnings on the base `6b0d2d5` | 21 | Measured on 2026-11-06 on Linux: `cargo doc --workspace --no-deps --lib` at `6b0d2d5` emits 21 `unresolved link to ...` warnings, plus one public-doc-link-to-private-item warning; 22 in total, as recorded above. A `git grep -oE '\[[0-9]+:[0-9]+\]' -- '*.rs'` on that tree finds 54 such occurrences, so the warnings are not one per field, which is why the CHANGELOG now states the count instead of saying "every such field". |

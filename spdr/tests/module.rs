@@ -4,7 +4,7 @@
 //! This adds a new module-specific snapshot and leaves the Phase 1, 2, and 3
 //! snapshots untouched. The snapshot locks the unbuffered decode against
 //! regression; it does not prove correctness, which is verified at review against
-//! an independent decoder's physical-attribute readout (DDR5SPDEditor) and the
+//! an independent decoder's physical-attribute readout (`DDR5SPDEditor`) and the
 //! part's mechanical datasheet.
 
 use spdr::{DecodeError, ModuleSpecific, ModuleType, decode_module_specific};

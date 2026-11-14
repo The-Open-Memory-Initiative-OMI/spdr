@@ -18,7 +18,7 @@
 //! result, deferred to later phases gated on real fixtures. Phase 5 adds the
 //! manufacturing information block ([`Manufacturing`], [`decode_manufacturing`]),
 //! including JEP-106 manufacturer resolution. Phase 8 opens the linter, the
-//! validation-beyond-CRC pillar ([`Finding`], [`Severity`], [`lint`]): it reports
+//! validation-beyond-CRC pillar ([`Finding`], [`Severity`], [`lint()`]): it reports
 //! structured findings for values that are internally inconsistent even in a
 //! CRC-valid SPD, starting with the capacity-consistency rule. Phase 9a decodes
 //! the vendor overclocking profiles ([`Xmp`], [`Expo`], [`decode_xmp`],

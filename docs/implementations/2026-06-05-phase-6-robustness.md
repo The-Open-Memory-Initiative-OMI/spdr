@@ -26,8 +26,9 @@ Two tools, split by where they can run:
   ordinary `#[test]`s and ride into the existing `cargo test` job.
 - **cargo-fuzz** is committed as a harness but is **not built or run here**.
   libFuzzer needs a clang/LLVM toolchain (Linux or WSL) that Windows MSVC does
-  not provide, so the fuzz crate cannot link on this machine. It is scaffolded,
-  rustfmt-clean, and ready for Mert to run on Linux. No fuzz result is claimed.
+  not provide, so the fuzz crate cannot link on this machine (corrected
+  2026-10-16: see the addendum below). It is scaffolded, rustfmt-clean, and
+  ready for Mert to run on Linux. No fuzz result is claimed.
 
 ## What Changed
 
@@ -123,9 +124,10 @@ capturing the shrunk input, never a weakening of the property.
 - **proptest in the gate, cargo-fuzz committed-but-not-run.** The split follows
   what each tool needs. proptest is pure Rust and runs anywhere `cargo test`
   does, so it is the always-on regression guard. libFuzzer needs clang/LLVM and
-  does not link under Windows MSVC, so the fuzz harness is scaffolded and
-  rustfmt-clean but deliberately not built here. The report states the fuzz crate
-  was not run rather than implying a fuzz result.
+  does not link under Windows MSVC (corrected 2026-10-16: see the addendum
+  below), so the fuzz harness is scaffolded and rustfmt-clean but deliberately
+  not built here. The report states the fuzz crate was not run rather than
+  implying a fuzz result.
 - **A stronger assertion only where the space is finite.** The two proptest
   properties assert no-panic only, because arbitrary and mutated bytes legitimately
   produce `UnknownEnum` and `NonAscii`, which are correct outcomes, not failures.
@@ -167,7 +169,8 @@ Phase 1 through 5 unit, integration, and snapshot suites are untouched and green
 ### Fuzzing (Linux / WSL, run manually by Mert)
 
 The fuzz crate is **not built or run on Windows**: libFuzzer cannot link under
-MSVC. On a Linux or WSL host with a nightly toolchain and `cargo-fuzz` installed
+MSVC (corrected 2026-10-16: see the addendum below). On a Linux or WSL host
+with a nightly toolchain and `cargo-fuzz` installed
 (`cargo install cargo-fuzz`), from the `spdr/` crate directory:
 
 ```
@@ -190,6 +193,39 @@ fixture's decode left unchanged.
 | Date | Host | Command | Executions | Duration | Result |
 | --- | --- | --- | --- | --- | --- |
 | _pending_ | _pending_ | `cargo +nightly fuzz run decode_all -- -max_total_time=<s>` | _pending_ | _pending_ | _pending_ |
+
+Attempted and recorded so the empty row above is not mistaken for an oversight:
+
+| Date | Host | Command | Result |
+| --- | --- | --- | --- |
+| 2026-10-16 | Windows 11 x86_64, MSVC + Scoop LLVM 23 (run by `danalec`, the PR #1 author) | `cargo +nightly fuzz run decode_all -- -max_total_time=45` | Build and link succeed; the binary then exits `STATUS_DLL_NOT_FOUND` (0xC0000135) on the missing `clang_rt.asan_dynamic-x86_64.dll`, `STATUS_ENTRYPOINT_NOT_FOUND` (0xC0000139) with LLVM's runtime on `PATH`, and `CC=clang CXX=clang++` fails to link (LNK1120). Zero executions, so it earns no fuzz result. |
+
+The same date's Windows substitute for a deep run is the proptest surface at
+raised case counts, which passes on that host: from `spdr/`,
+`PROPTEST_CASES=100000 cargo test --release --test robustness` (both properties
+plus the exhaustive truncation test; 3 passed in 1.17 s on 2026-10-16). That is
+still property-testing, not fuzzing, and the README wording stays accordingly.
+
+## Addendum · 2026-10-16 · the fuzz harness on Windows, measured
+
+The June rationale above says the fuzz crate "cannot link on this machine".
+That was wrong. The correction is recorded here, dated, rather than rewritten
+into the June text.
+
+Measured on Windows 11 x86_64 with MSVC and Scoop LLVM 23, by `danalec` (the
+author of PR #1): `cargo +nightly fuzz build decode_all` **does compile and
+link**. The failure comes one step later, at load time.
+
+| Variant | Outcome |
+| --- | --- |
+| Default (MSVC) | `STATUS_DLL_NOT_FOUND` (0xC0000135), on the missing `clang_rt.asan_dynamic-x86_64.dll` import |
+| LLVM's runtime on `PATH` | `STATUS_ENTRYPOINT_NOT_FOUND` (0xC0000139) |
+| `CC=clang CXX=clang++` | fails to link instead: LNK1120, unresolved external |
+
+Zero executions, so this earns no fuzz result. The harness is scaffolded,
+rustfmt-clean, and ready for Mert to run on Linux, where the deep run is still
+owed. The README keeps saying "property-tested, not fuzzed" until a recorded
+deep run lands.
 
 Only after a recorded deep run with no crash does the README earn the word
 "fuzzed" as a completed claim.

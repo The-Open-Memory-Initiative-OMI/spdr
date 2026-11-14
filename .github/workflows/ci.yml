@@ -6,7 +6,7 @@ on:
 
 jobs:
   check:
-    name: fmt · clippy · test
+    name: fmt · clippy · doc · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +27,14 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # Rustdoc warnings (broken intra-doc links) are build failures here too.
+      # Missing `# Errors` sections are caught by the Clippy step above, through
+      # the denied `missing_errors_doc` lint. `--lib` keeps
+      # the doc set to the two library APIs and dodges the known output-filename
+      # collision between the `spdr` lib and the `spdr` binary (cargo#6313).
+      - name: Docs
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --lib
 
       - name: Test
         run: cargo test --workspace

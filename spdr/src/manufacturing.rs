@@ -162,9 +162,14 @@ pub struct Manufacturing<'a> {
 
 /// Decode the manufacturing information block from a raw SPD image.
 ///
-/// Reads every byte through [`SpdImage`], so a short image is a typed
-/// [`DecodeError::Truncated`], never a panic. A non-ASCII part number is a typed
-/// [`DecodeError::NonAscii`]. The `part_number` field borrows from `bytes`.
+/// Reads every byte through [`SpdImage`], never panicking. The `part_number`
+/// field borrows from `bytes`.
+///
+/// # Errors
+///
+/// - [`DecodeError::Truncated`] if the image is too short for a required byte.
+/// - [`DecodeError::NonAscii`] if the part number holds a byte outside the
+///   ASCII range, reported rather than lossily reinterpreted.
 pub fn decode_manufacturing(bytes: &[u8]) -> Result<Manufacturing<'_>, DecodeError> {
     let spd = SpdImage::new(bytes);
 
@@ -207,7 +212,7 @@ pub fn decode_manufacturing(bytes: &[u8]) -> Result<Manufacturing<'_>, DecodeErr
 /// byte. Bit 7 of each is odd parity and is stripped: `bank` is the 7-bit
 /// continuation count plus 1, `code` is the 7-bit manufacturer code. The name is
 /// resolved from the cited table, or `None` when the pair is absent.
-fn decode_manufacturer_id(lsb: u8, msb: u8) -> ManufacturerId {
+const fn decode_manufacturer_id(lsb: u8, msb: u8) -> ManufacturerId {
     let bank = (lsb & 0x7F) + 1;
     let code = msb & 0x7F;
     ManufacturerId {
@@ -218,7 +223,7 @@ fn decode_manufacturer_id(lsb: u8, msb: u8) -> ManufacturerId {
 }
 
 /// Decode a BCD byte (two decimal digits packed one per nibble) to its value.
-fn bcd(byte: u8) -> u8 {
+const fn bcd(byte: u8) -> u8 {
     (byte >> 4) * 10 + (byte & 0x0F)
 }
 
@@ -267,7 +272,7 @@ const JEP106: &[(u8, u8, &str)] = &[
 ];
 
 /// Resolve a JEP-106 `(bank, code)` to a name from the cited table, or `None`.
-fn resolve_jep106(bank: u8, code: u8) -> Option<&'static str> {
+const fn resolve_jep106(bank: u8, code: u8) -> Option<&'static str> {
     let mut i = 0;
     while i < JEP106.len() {
         let (b, c, name) = JEP106[i];

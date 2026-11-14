@@ -18,3 +18,19 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = "deny"
+# A curated set from `clippy::pedantic`, each entry naming a class this pass
+# found a real issue of: silent `as` narrowing, undocumented `Result` errors,
+# undocumented identifiers in docs, `&Option<T>` arguments, needless
+# pass-by-value. Kept curated rather than a blanket `pedantic` so a future
+# upstream pedantic lint cannot break CI on a toolchain bump. `ref_option` is
+# not newer than the MSRV: clippy 1.85.1 reports it as implied by `pedantic`,
+# so the 1.85 toolchain resolves it. `bool_to_int_with_if` was dropped: it is a
+# style lint that forbids `if ok { 0 } else { 1 }` and asks for
+# `i32::from(!ok)` instead, so its only effect here was to force a less
+# readable exit-code expression.
+cast_possible_truncation = "deny"
+doc_markdown = "deny"
+missing_errors_doc = "deny"
+needless_pass_by_value = "deny"
+ref_option = "deny"
+trivially_copy_pass_by_ref = "deny"
