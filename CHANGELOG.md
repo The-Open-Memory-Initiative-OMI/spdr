@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.2] - 2026-11-14
 
 Quality and documentation pass over the shipped surface. No decoded-output
 change: every test and snapshot passes unchanged. The public API gains `const`
@@ -30,6 +30,10 @@ removing `const` later would be breaking.
   and a curated set of `clippy::pedantic` lints (silent-cast, doc, and argument
   idioms) denied at the workspace level, so the classes of issue fixed here
   cannot silently regress. CI now also builds rustdoc with `-D warnings`.
+
+### Changed
+
+- `spdr-cli` now requires `spdr` 0.1.2, keeping the two in lockstep.
 
 ### Fixed
 
@@ -134,5 +138,6 @@ tool (binary `spdr`).
 - The tFAW >= 4 x tRRD_S ordering rule (tRRD_S is not in the decoded timing set).
 - A lint severity-threshold flag.
 
+[0.1.2]: https://github.com/The-Open-Memory-Initiative-OMI/spdr/releases/tag/v0.1.2
 [0.1.1]: https://github.com/The-Open-Memory-Initiative-OMI/spdr/releases/tag/v0.1.1
 [0.1.0]: https://github.com/The-Open-Memory-Initiative-OMI/spdr/releases/tag/v0.1.0

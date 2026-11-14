@@ -23,7 +23,7 @@ path = "src/main.rs"
 # Both `version` and `path`: `path` resolves the local crate during development,
 # and `version` is what a published `spdr-cli` depends on from the registry. A
 # path-only dependency cannot be published.
-spdr = { version = "0.1.1", path = "../spdr", features = ["serde"] }
+spdr = { version = "0.1.2", path = "../spdr", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 
